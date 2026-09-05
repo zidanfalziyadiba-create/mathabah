@@ -87,7 +87,11 @@
     "vite": "^7.1.7",
     "vite-plugin-manus-runtime": "^0.0.58",
     "vitest": "^2.1.4"
-  },      "tailwindcss>nanoid": "3.3.7"
+  },
+  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5",
+  "pnpm": {
+    "overrides": {
+      "tailwindcss>nanoid": "3.3.7"
     }
   }
 }
