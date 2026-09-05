@@ -1,0 +1,34 @@
+{
+  "build_command": "pnpm run build",
+  "capabilities": [],
+  "dev_command": "pnpm run dev",
+  "env_vars": {},
+  "experiments": null,
+  "git_remote": {
+    "repo_url": "https://7f0548f6b28a1758d9bf7be630d36cb4.artifacts.cloudflare.net/git/prod/fbqvgys9lsmwmt55evhius.git",
+    "expiration": "2026-09-05T05:43:10.476Z",
+    "token": "art_v2_x_749e96f02910f508ac590be4f11041caeb111d65?expires=1788586990",
+    "backend": "GIT_BACKEND_ARTIFACTS"
+  },
+  "name": "mathabah-site",
+  "path": "/home/ubuntu/mathabah-site",
+  "port": 3000,
+  "secrets": {
+    "BUILT_IN_FORGE_API_KEY": "UPYPaKUTpmhgTTAaYsyDFt",
+    "BUILT_IN_FORGE_API_URL": "https://forge.manus.ai",
+    "JWT_SECRET": "HpAet9ahpufQQdctGDRyXY",
+    "OAUTH_SERVER_URL": "https://api.manus.im",
+    "OWNER_NAME": "Zidan Al-ziyadi",
+    "OWNER_OPEN_ID": "njCW6dJUUVdcgjR2WxyzS5",
+    "VITE_ANALYTICS_ENDPOINT": "https://manus-analytics.com",
+    "VITE_ANALYTICS_WEBSITE_ID": "ca3d99e8-1090-4e7f-9482-e269c92347bd",
+    "VITE_APP_ID": "fbQVgyS9LSMwMT55evhius",
+    "VITE_APP_LOGO": "",
+    "VITE_APP_TITLE": "مؤسسة مثابة | Mathabah",
+    "VITE_FRONTEND_FORGE_API_KEY": "HvEnDMrqNXqZKzxfeXWb5G",
+    "VITE_FRONTEND_FORGE_API_URL": "https://forge.manus.ai",
+    "VITE_OAUTH_PORTAL_URL": "https://manus.im"
+  },
+  "template_id": "web-static",
+  "test_command": "pnpm test"
+}
