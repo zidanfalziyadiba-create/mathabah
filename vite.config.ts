@@ -205,7 +205,7 @@ function vitePluginStorageProxy(): Plugin {
 
 export default defineConfig({
   // Relative paths for GitHub Pages and subdirectories.
-  base: "./",
+  base: "/mathabah/",
   plugins: [
     react(),
     tailwindcss(),
