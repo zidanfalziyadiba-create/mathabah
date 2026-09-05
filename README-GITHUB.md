@@ -26,6 +26,22 @@ pnpm build
 
 بعد نجاح العملية سيظهر رابط الموقع في قسم **Settings → Pages**. إعداد Vite يستخدم مسارات نسبية، لذلك يعمل الموقع داخل رابط مستودع فرعي أو نطاق مخصص.
 
+## الرفع عبر Cloudflare Pages المرتبط بـ GitHub
+
+عند ربط المستودع مع Cloudflare Pages استخدم الإعدادات التالية:
+
+| الإعداد | القيمة |
+|---|---|
+| Framework preset | `Vite` أو `None` |
+| Build command | `pnpm build` |
+| Build output directory | `dist/public` |
+| Node.js version | `22` |
+| Package manager | `pnpm` |
+
+ملفا `client/public/_redirects` و`client/public/_headers` مضمّنان في الناتج النهائي. الأول يدعم التوجيه داخل تطبيق React، والثاني يضيف ترويسات أمان وتخزينًا مؤقتًا للأصول. لا يحتاج النشر الثابت إلى تشغيل `server/index.ts`؛ لذلك أصبح `pnpm build` يبني ملفات الواجهة فقط، بينما بقي `pnpm run build:server` متاحًا للتشغيل التقليدي عبر Express عند الحاجة.
+
+التحليلات اختيارية: إذا أضفت متغيري البيئة `VITE_ANALYTICS_ENDPOINT` و`VITE_ANALYTICS_WEBSITE_ID` في إعدادات Cloudflare Pages فسيتم تحميل Umami تلقائيًا، وإلا فلن يضيف البناء أي رابط تحليلات غير صالح.
+
 ## ملاحظات مهمة
 
 الصور والشعار مضمنة محليًا داخل `client/public/assets` حتى لا تعتمد النسخة على تخزين Manus. تم الإبقاء على الصور الحقيقية المستخدمة في المعرض دون استبدالها بصور عامة. قسم المراجعات لا يحتوي شهادات مختلقة؛ أضف الشهادات الحقيقية فقط بعد موافقة أصحابها.
