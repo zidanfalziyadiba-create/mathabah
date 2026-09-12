@@ -6,17 +6,13 @@ export default function SmartModalAndScroll() {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
-    // تظهر النافذة بعد ثانية ونصف
-    const openTimer = setTimeout(() => setShowModal(true), 1500);
-    // تختفي تلقائياً بعد 7 ثوانٍ حتى لا تزعج الزائر
-    const closeTimer = setTimeout(() => setShowModal(false), 8500);
+    // تظهر في المنتصف بعد ثانيتين
+    const openTimer = setTimeout(() => setShowModal(true), 2000);
+    // تغلق تلقائياً بعد 6 ثوانٍ حتى لا تزعج الزائر
+    const closeTimer = setTimeout(() => setShowModal(false), 7000);
 
     const handleScroll = () => {
-      if (window.scrollY > 300) {
-        setShowScrollTop(true);
-      } else {
-        setShowScrollTop(false);
-      }
+      setShowScrollTop(window.scrollY > 250);
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -29,100 +25,101 @@ export default function SmartModalAndScroll() {
 
   return (
     <>
+      {/* نافذة العروض الترويجية في منتصف الهاتف والكمبيوتر بدقة */}
       {showModal && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "rgba(15, 23, 42, 0.65)",
-          backdropFilter: "blur(5px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 999999,
-          padding: "16px",
-          boxSizing: "border-box"
-        }}>
-          <div style={{
-            backgroundColor: "#ffffff",
-            borderRadius: "20px",
-            overflow: "hidden",
-            maxWidth: "420px",
+        <div 
+          onClick={() => setShowModal(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
             width: "100%",
-            textAlign: "center",
-            direction: "rtl",
-            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.35)",
-            position: "relative",
-            animation: "popupAnim 0.35s ease-out"
-          }}>
-            {/* زر إغلاق دائري وسهل */}
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999999,
+            padding: "16px",
+            boxSizing: "border-box"
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "#ffffff",
+              borderRadius: "18px",
+              overflow: "hidden",
+              maxWidth: "360px",
+              width: "100%",
+              textAlign: "center",
+              direction: "rtl",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+              position: "relative",
+              border: "1px solid rgba(217, 119, 6, 0.3)"
+            }}
+          >
             <button
               onClick={() => setShowModal(false)}
               aria-label="إغلاق"
               style={{
                 position: "absolute",
-                top: "12px",
-                left: "12px",
-                background: "rgba(0,0,0,0.5)",
+                top: "10px",
+                left: "10px",
+                background: "rgba(0,0,0,0.6)",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: "50%",
-                width: "32px",
-                height: "32px",
+                width: "30px",
+                height: "30px",
                 cursor: "pointer",
-                fontSize: "15px",
+                fontSize: "14px",
                 fontWeight: "bold",
                 zIndex: 10
               }}
             >✕</button>
 
-            {/* بانر العرض / المناسبات - يمكنك تغيير الصورة أو الألوان لاحقاً */}
             <div style={{
-              backgroundColor: "#0f172a",
+              background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
               color: "#ffffff",
-              padding: "24px 16px",
-              background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+              padding: "20px 14px",
               borderBottom: "3px solid #d97706"
             }}>
-              <div style={{ fontSize: "38px", marginBottom: "6px" }}>🇸🇦✨</div>
+              <div style={{ fontSize: "32px", marginBottom: "4px" }}>✨🏢</div>
               <span style={{
                 backgroundColor: "#d97706",
                 color: "#ffffff",
-                fontSize: "12px",
+                fontSize: "11px",
                 fontWeight: "bold",
-                padding: "3px 12px",
-                borderRadius: "20px",
+                padding: "3px 10px",
+                borderRadius: "12px",
                 display: "inline-block",
-                marginBottom: "8px"
+                marginBottom: "6px"
               }}>
-                عرض خاص بمناسبة اليوم الوطني
+                عروض وخدمات حصرية
               </span>
-              <h3 style={{ margin: "4px 0", fontSize: "20px", fontWeight: "800", color: "#f8fafc" }}>
-                مؤسسة مثابة لخدمات الأعمال
+              <h3 style={{ margin: "2px 0", fontSize: "18px", fontWeight: "bold" }}>
+                مؤسسة مثابة
               </h3>
             </div>
 
-            {/* تفاصيل العرض */}
-            <div style={{ padding: "20px 24px" }}>
-              <p style={{ margin: "0 0 16px 0", color: "#334155", fontSize: "14px", lineHeight: "1.7", fontWeight: "500" }}>
-                خصومات وعروض حصرية على كافة الحلول المعتمدة وتجهيز المشاريع. نسعد بتواصلكم معنا للاستفادة من الباقات الحالية.
+            <div style={{ padding: "16px 18px" }}>
+              <p style={{ margin: "0 0 14px 0", color: "#4b5563", fontSize: "13px", lineHeight: "1.6" }}>
+                نسعد بخدمتكم وتوفير كافة حلول الأعمال والمشاريع المعتمدة بأعلى معايير الجودة.
               </p>
-
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  backgroundColor: "#0f172a",
+                  backgroundColor: "#111827",
                   color: "#ffffff",
                   border: "none",
-                  borderRadius: "10px",
-                  padding: "12px 20px",
-                  fontSize: "14px",
+                  borderRadius: "8px",
+                  padding: "10px 18px",
+                  fontSize: "13px",
                   fontWeight: "bold",
                   cursor: "pointer",
-                  width: "100%",
-                  transition: "background 0.2s"
+                  width: "100%"
                 }}
               >
                 تصفح الخدمات
@@ -132,40 +129,33 @@ export default function SmartModalAndScroll() {
         </div>
       )}
 
-      {/* زر العودة إلى الأعلى */}
+      {/* زر العودة لأعلى الشاشة - في اليسار لعدم التعارض مع زر الواتساب في اليمين */}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          title="العودة لأعلى الصفحة"
+          title="العودة لأعلى"
           style={{
             position: "fixed",
-            bottom: "24px",
-            right: "24px",
-            zIndex: 99999,
-            backgroundColor: "#0f172a",
-            color: "#ffffff",
+            bottom: "22px",
+            left: "20px",
+            zIndex: 99998,
+            backgroundColor: "#111827",
+            color: "#d97706",
             border: "2px solid #d97706",
             borderRadius: "50%",
-            width: "46px",
-            height: "46px",
+            width: "44px",
+            height: "44px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
-            fontSize: "20px"
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            fontSize: "18px"
           }}
         >
           ▲
         </button>
       )}
-
-      <style>{`
-        @keyframes popupAnim {
-          from { opacity: 0; transform: scale(0.88); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </>
   );
 }
