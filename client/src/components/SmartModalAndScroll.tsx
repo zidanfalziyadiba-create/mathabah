@@ -2,30 +2,21 @@
 import React, { useState, useEffect } from "react";
 
 export default function SmartModalAndScroll() {
-  const [showModal, setShowModal] = useState(false);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showModal, setShowModal] = useState(true);
 
   useEffect(() => {
-    // تظهر في المنتصف بعد ثانيتين
-    const openTimer = setTimeout(() => setShowModal(true), 2000);
-    // تغلق تلقائياً بعد 6 ثوانٍ حتى لا تزعج الزائر
-    const closeTimer = setTimeout(() => setShowModal(false), 7000);
-
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 250);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => {
-      clearTimeout(openTimer);
-      clearTimeout(closeTimer);
-      window.removeEventListener("scroll", handleScroll);
-    };
+    // إغلاق النافذة المنبثقة تلقائياً بعد 6 ثوانٍ
+    const timer = setTimeout(() => setShowModal(false), 6000);
+    return () => clearTimeout(timer);
   }, []);
 
+  const goToTop = () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
   return (
-    <>
-      {/* نافذة العروض الترويجية في منتصف الهاتف والكمبيوتر بدقة */}
+    <div style={{ position: "relative", zIndex: 2147483647 }}>
+      {/* النافذة المنبثقة الترويجية في منتصف الشاشة */}
       {showModal && (
         <div 
           onClick={() => setShowModal(false)}
@@ -33,129 +24,101 @@ export default function SmartModalAndScroll() {
             position: "fixed",
             top: 0,
             left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            backdropFilter: "blur(4px)",
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 999999,
             padding: "16px",
-            boxSizing: "border-box"
+            zIndex: 2147483646
           }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
             style={{
               backgroundColor: "#ffffff",
-              borderRadius: "18px",
-              overflow: "hidden",
-              maxWidth: "360px",
+              borderRadius: "16px",
               width: "100%",
+              maxWidth: "340px",
               textAlign: "center",
               direction: "rtl",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
-              position: "relative",
-              border: "1px solid rgba(217, 119, 6, 0.3)"
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              overflow: "hidden",
+              position: "relative"
             }}
           >
             <button
               onClick={() => setShowModal(false)}
-              aria-label="إغلاق"
               style={{
                 position: "absolute",
                 top: "10px",
                 left: "10px",
-                background: "rgba(0,0,0,0.6)",
-                color: "#ffffff",
+                backgroundColor: "#e2e8f0",
                 border: "none",
                 borderRadius: "50%",
-                width: "30px",
-                height: "30px",
+                width: "28px",
+                height: "28px",
                 cursor: "pointer",
-                fontSize: "14px",
-                fontWeight: "bold",
-                zIndex: 10
+                fontWeight: "bold"
               }}
             >✕</button>
 
-            <div style={{
-              background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)",
-              color: "#ffffff",
-              padding: "20px 14px",
-              borderBottom: "3px solid #d97706"
-            }}>
-              <div style={{ fontSize: "32px", marginBottom: "4px" }}>✨🏢</div>
-              <span style={{
-                backgroundColor: "#d97706",
-                color: "#ffffff",
-                fontSize: "11px",
-                fontWeight: "bold",
-                padding: "3px 10px",
-                borderRadius: "12px",
-                display: "inline-block",
-                marginBottom: "6px"
-              }}>
-                عروض وخدمات حصرية
-              </span>
-              <h3 style={{ margin: "2px 0", fontSize: "18px", fontWeight: "bold" }}>
-                مؤسسة مثابة
-              </h3>
+            <div style={{ backgroundColor: "#0f172a", color: "#ffffff", padding: "18px 12px" }}>
+              <div style={{ fontSize: "28px", marginBottom: "4px" }}>🏢✨</div>
+              <h3 style={{ margin: 0, fontSize: "17px", color: "#f8fafc" }}>مؤسسة مثابة</h3>
             </div>
 
-            <div style={{ padding: "16px 18px" }}>
-              <p style={{ margin: "0 0 14px 0", color: "#4b5563", fontSize: "13px", lineHeight: "1.6" }}>
-                نسعد بخدمتكم وتوفير كافة حلول الأعمال والمشاريع المعتمدة بأعلى معايير الجودة.
+            <div style={{ padding: "16px" }}>
+              <p style={{ margin: "0 0 14px 0", color: "#334155", fontSize: "13px", lineHeight: "1.6" }}>
+                أهلاً بكم في مؤسسة مثابة، نسعد بخدمتكم وتوفير أفضل حلول الأعمال المعتمدة.
               </p>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  backgroundColor: "#111827",
+                  backgroundColor: "#d97706",
                   color: "#ffffff",
                   border: "none",
                   borderRadius: "8px",
-                  padding: "10px 18px",
+                  padding: "8px 20px",
                   fontSize: "13px",
                   fontWeight: "bold",
                   cursor: "pointer",
                   width: "100%"
                 }}
               >
-                تصفح الخدمات
+                تصفح الموقع
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* زر العودة لأعلى الشاشة - في اليسار لعدم التعارض مع زر الواتساب في اليمين */}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          title="العودة لأعلى"
-          style={{
-            position: "fixed",
-            bottom: "22px",
-            left: "20px",
-            zIndex: 99998,
-            backgroundColor: "#111827",
-            color: "#d97706",
-            border: "2px solid #d97706",
-            borderRadius: "50%",
-            width: "44px",
-            height: "44px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            fontSize: "18px"
-          }}
-        >
-          ▲
-        </button>
-      )}
-    </>
+      {/* زر العودة لأعلى - ثابت في أسفل اليسار بشكل دائم وبارز */}
+      <button
+        onClick={goToTop}
+        aria-label="العودة لأعلى الصفحة"
+        style={{
+          position: "fixed",
+          bottom: "30px",
+          left: "20px",
+          zIndex: 2147483647,
+          backgroundColor: "#0f172a",
+          color: "#d97706",
+          border: "2px solid #d97706",
+          borderRadius: "50%",
+          width: "48px",
+          height: "48px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
+          fontSize: "20px"
+        }}
+      >
+        ▲
+      </button>
+    </div>
   );
 }
