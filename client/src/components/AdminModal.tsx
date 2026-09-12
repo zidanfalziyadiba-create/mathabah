@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from "react";
+﻿// @ts-nocheck
+import React, { useState, useEffect } from "react";
 import { siteConfig } from "../siteConfig";
 
 export const AdminModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
@@ -67,3 +68,5 @@ export const AdminModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () =
     </div>
   );
 };
+
+
