@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ArrowDownLeft, Check, MessageCircle, Phone } from "lucide-react";
 
 const services = {
@@ -37,11 +38,54 @@ export default function ServicePage({ path }: { path: string }) {
   const service = services[path as ServiceKey] || services["/services/interior-decor"];
   const canonical = `https://mathabahksa.com${path}`;
 
-  if (typeof document !== "undefined") {
+  useEffect(() => {
     document.title = service.title;
     document.querySelector('meta[name="description"]')?.setAttribute("content", service.description);
     document.querySelector('link[rel="canonical"]')?.setAttribute("href", canonical);
-  }
+
+    const meta = (selector: string, attribute: "name" | "property", key: string, value: string) => {
+      let tag = document.querySelector<HTMLMetaElement>(selector);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute(attribute, key);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", value);
+    };
+    meta('meta[property="og:title"]', "property", "og:title", service.title);
+    meta('meta[property="og:description"]', "property", "og:description", service.description);
+    meta('meta[property="og:url"]', "property", "og:url", canonical);
+    meta('meta[property="og:image"]', "property", "og:image", `https://mathabahksa.com${service.image}`);
+    meta('meta[name="twitter:title"]', "name", "twitter:title", service.title);
+    meta('meta[name="twitter:description"]', "name", "twitter:description", service.description);
+    meta('meta[name="twitter:image"]', "name", "twitter:image", `https://mathabahksa.com${service.image}`);
+
+    const schemaId = "service-page-schema";
+    let schema = document.getElementById(schemaId);
+    if (!schema) {
+      schema = document.createElement("script");
+      schema.id = schemaId;
+      schema.setAttribute("type", "application/ld+json");
+      document.head.appendChild(schema);
+    }
+    schema.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Service",
+      name: service.title,
+      description: service.description,
+      url: canonical,
+      image: `https://mathabahksa.com${service.image}`,
+      provider: {
+        "@type": "LocalBusiness",
+        name: "مؤسسة مثابة",
+        url: "https://mathabahksa.com/",
+        telephone: "+966565173798",
+        address: { "@type": "PostalAddress", addressLocality: "الرياض", addressCountry: "SA" },
+      },
+      areaServed: { "@type": "Country", name: "المملكة العربية السعودية" },
+    });
+    return () => document.getElementById(schemaId)?.remove();
+  }, [canonical, service]);
 
   return <div className="service-page" dir="rtl">
     <header className="service-page-header">
