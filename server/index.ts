@@ -13,7 +13,6 @@ const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
   <url><loc>https://mathabahksa.com/services/interior-decor</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://mathabahksa.com/services/woodwork</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://mathabahksa.com/services/aluminum</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://mathabahksa.com/services/stone-marble</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>`;
 
 async function startServer() {
