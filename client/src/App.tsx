@@ -6,6 +6,7 @@ const servicePaths = new Set([
   "/services/interior-decor",
   "/services/woodwork",
   "/services/aluminum",
+  "/services/stone-marble",
 ]);
 
 export default function App() {
