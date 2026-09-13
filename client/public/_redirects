@@ -1,0 +1,2 @@
+# SPA fallback for client-side routes; static assets, robots.txt, and sitemap.xml are served directly.
+/*    /index.html   200
