@@ -1,7 +1,14 @@
-﻿import SmartModalAndScroll from './components/SmartModalAndScroll';
+﻿import ServicePage from "./pages/ServicePage";
 import Home from "./pages/Home";
 
-export default function App() {
-  return <Home />;
-}
+const servicePaths = new Set([
+  "/services/glass",
+  "/services/interior-decor",
+  "/services/woodwork",
+  "/services/aluminum",
+]);
 
+export default function App() {
+  const path = window.location.pathname.replace(/\/$/, "") || "/";
+  return servicePaths.has(path) ? <ServicePage path={path} /> : <Home />;
+}

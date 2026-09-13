@@ -8,11 +8,11 @@ const __dirname = path.dirname(__filename);
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://mathabahksa.com/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
+  <url><loc>https://mathabahksa.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://mathabahksa.com/services/glass</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://mathabahksa.com/services/interior-decor</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://mathabahksa.com/services/woodwork</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://mathabahksa.com/services/aluminum</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 </urlset>`;
 
 async function startServer() {
