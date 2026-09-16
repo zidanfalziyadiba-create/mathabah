@@ -3,9 +3,9 @@ import { ArrowDownLeft, Check, MessageCircle, Phone } from "lucide-react";
 
 const services = {
   "/services/glass": {
-    title: "أعمال الزجاج والسيكوريت وكبائن الشاور في الرياض والسعودية",
+    title: "زجاج سيكوريت وواجهات زجاجية في الرياض | مؤسسة مثابة",
     shortTitle: "أعمال الزجاج والسيكوريت",
-    description: "تنفيذ الواجهات الزجاجية وزجاج السيكوريت، كبائن الشاور، قواطع الدبل جلاس، الدرابزينات وأعمال الاستركشر بمواصفات واضحة للمنازل والمشاريع التجارية في الرياض.",
+    description: "تنفيذ زجاج السيكوريت والواجهات الزجاجية وكبائن الشاور والدرابزينات في الرياض. معاينة وتنفيذ حسب احتياج مشروعك. تواصل مع مؤسسة مثابة.",
     localIntro: "تنفذ مؤسسة مثابة أعمال الزجاج السيكوريت والواجهات الزجاجية في الرياض، مع معاينة واضحة واختيار السماكة والتفاصيل المناسبة للمكان.",
     image: "/glass-facade_1281cb63_3c523186.jpg",
     points: ["واجهات زجاجية واستركشر", "كبائن شاور وزجاج سيكوريت", "قواطع دبل جلاس ودرابزينات زجاجية", "معاينة وتنسيق قبل التنفيذ"],
@@ -74,20 +74,28 @@ export default function ServicePage({ path }: { path: string }) {
     }
     schema.textContent = JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "Service",
-      inLanguage: "ar-SA",
-      name: service.title,
-      description: service.description,
-      url: canonical,
-      image: `https://mathabahksa.com${service.image}`,
-      provider: {
-        "@type": "LocalBusiness",
-        name: "مؤسسة مثابة",
-        url: "https://mathabahksa.com/",
-        telephone: "+966565173798",
-        address: { "@type": "PostalAddress", addressLocality: "الرياض", addressCountry: "SA" },
-      },
-      areaServed: { "@type": "Country", name: "المملكة العربية السعودية" },
+      "@graph": [
+        {
+          "@type": "Service",
+          "@id": `${canonical}#service`,
+          inLanguage: "ar-SA",
+          name: service.title,
+          serviceType: ["زجاج سيكوريت", "واجهات زجاجية", "كبائن شاور زجاج", "درابزينات زجاجية", "قواطع زجاجية"],
+          description: service.description,
+          url: canonical,
+          image: `https://mathabahksa.com${service.image}`,
+          provider: { "@id": "https://mathabahksa.com/#business" },
+          areaServed: { "@type": "City", name: "الرياض", containedInPlace: { "@type": "Country", name: "المملكة العربية السعودية" } },
+        },
+        {
+          "@type": "BreadcrumbList",
+          "@id": `${canonical}#breadcrumb`,
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "الرئيسية", item: "https://mathabahksa.com/" },
+            { "@type": "ListItem", position: 2, name: "أعمال الزجاج والسيكوريت", item: canonical },
+          ],
+        },
+      ],
     });
     return () => document.getElementById(schemaId)?.remove();
   }, [canonical, service]);
