@@ -75,6 +75,7 @@ export default function ServicePage({ path }: { path: string }) {
     schema.textContent = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Service",
+      inLanguage: "ar-SA",
       name: service.title,
       description: service.description,
       url: canonical,
@@ -100,7 +101,7 @@ export default function ServicePage({ path }: { path: string }) {
     <main>
       <section className="service-hero">
         <div className="service-hero-copy"><span className="eyebrow">مؤسسة مثابة · المملكة العربية السعودية</span><h1>{service.title}</h1><p>{service.description}</p><div className="service-actions"><a className="button button-copper" href="https://wa.me/966565173798?text=مرحبًا، أود طلب عرض لمشروع">اطلبوا عرضًا <MessageCircle size={17} /></a><a className="button button-ghost" href="/#work">شاهدوا الأعمال <ArrowDownLeft size={16} /></a></div></div>
-        <div className="service-hero-image"><img src={service.image} alt={service.shortTitle} /></div>
+        <div className="service-hero-image"><img src={service.image} alt={service.shortTitle} width={2000} height={1500} fetchPriority="high" decoding="async" /></div>
       </section>
       <section id="details" className="service-details"><div><span className="eyebrow">ما نقدمه</span><h2>تفاصيل تُبنى<br /><em>على احتياج المكان.</em></h2><p>نبدأ بفهم المساحة والاستخدام والميزانية، ثم نساعدكم في اختيار الخامة والتفاصيل قبل التنفيذ. هدفنا نتيجة جميلة وعملية وواضحة في كل مرحلة.</p><p>{service.localIntro}</p></div><div className="service-points">{service.points.map((point) => <div key={point}><Check size={17} /><span>{point}</span></div>)}</div></section>
       <section id="contact" className="service-contact"><span className="eyebrow">لنبدأ الحديث</span><h2>مشروعكم يستحق<br /><em>خطوة واضحة.</em></h2><p>أرسلوا المدينة ونوع العمل والمساحة التقريبية عبر واتساب، وسنعود إليكم بالتفاصيل الأولية.</p><a className="button button-dark" href="https://wa.me/966565173798?text=مرحبًا، أود مناقشة مشروع مع مؤسسة مثابة"><MessageCircle size={17} /> تواصلوا عبر واتساب</a></section>

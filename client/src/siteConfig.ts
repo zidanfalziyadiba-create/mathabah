@@ -25,11 +25,11 @@ export const siteConfig = {
 
   // 3. أزرار التواصل والخريطة (التحكم بالظهور والروابط)
   socialLinks: {
-    whatsapp: { show: true, url: "https://wa.me/966500000000" },
+    whatsapp: { show: true, url: "https://wa.me/966565173798" },
     googleMaps: { show: true, url: "https://maps.google.com" },
-    facebook: { show: true, url: "https://facebook.com" },
-    instagram: { show: true, url: "https://instagram.com" },
-    tiktok: { show: true, url: "https://tiktok.com" },
+    facebook: { show: false, url: "" },
+    instagram: { show: false, url: "" },
+    tiktok: { show: false, url: "" },
     snapchat: { show: false, url: "https://snapchat.com" }
   },
 
