@@ -68,6 +68,7 @@ footer { background:#11110f; padding:75px clamp(22px,8vw,140px) 25px; }.footer-t
 .site-shell.theme-light .site-header nav,.site-shell.theme-light .hero-copy>p,.site-shell.theme-light .lead,.site-shell.theme-light .section-intro,.site-shell.theme-light .work-head>p { color:#625d55; }
 .site-shell.theme-light .announcement { background:#e8e3da; color:#625d55; }
 .site-shell.theme-light .chat-callout { background:#171613; color:#f3f0e8; }
+.site-shell.theme-dark .site-header .brand img,.site-shell.theme-dark footer img { filter:sepia(1) saturate(4) hue-rotate(350deg) brightness(1.45) drop-shadow(0 5px 12px rgba(0,0,0,.45)); }
 .header-tools { display:flex; align-items:center; gap:14px; }
 .theme-toggle { width:34px; height:34px; display:grid; place-items:center; background:transparent; border:1px solid var(--line); color:var(--copper); border-radius:50%; }
 .brand-motion { display:flex; align-items:center; gap:13px; width:max-content; max-width:100%; margin:12px 0 5px; padding:8px 14px 8px 10px; border-right:2px solid var(--copper); animation:brandFloat 4s ease-in-out infinite; }
@@ -166,7 +167,7 @@ html[data-theme="dark"], body[data-theme="dark"] { background:#11110f; color:#f3
 .site-shell.theme-light .work-section blockquote { color:#25221e; }
 .site-shell.theme-light .location-card p { color:#514c45; }
 .site-shell.theme-dark .site-header nav { color:#c8c1b8; }
-.service-card { cursor:pointer; }
+.service-card { display:block; cursor:pointer; }
 .service-card:focus-visible,.gallery-image:focus-visible,.theme-toggle:focus-visible,.float-top:focus-visible { outline:2px solid var(--copper); outline-offset:4px; }
 .brief-form button:disabled { opacity:.72; cursor:wait; }
 .form-feedback { color:#5c4026; font-size:12px; line-height:1.8; margin:14px 0 0; }
@@ -236,7 +237,7 @@ html[data-theme="dark"], body[data-theme="dark"] { background:#11110f; color:#f3
 .service-directory a:hover { color:#9e754a; border-color:#9e754a; }
 .service-page { min-height:100vh; background:#11110f; color:#f3f0e8; }
 .service-page-header { height:88px; padding:0 clamp(22px,8vw,140px); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
-.service-brand img { width:124px; display:block; }
+.service-brand img { width:124px; display:block; filter:sepia(1) saturate(4) hue-rotate(350deg) brightness(1.45) drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
 .service-page-header nav { display:flex; gap:28px; color:#b4afa6; font-size:13px; }
 .service-page-header nav a:hover { color:var(--paper); }
 .service-phone { display:flex; align-items:center; gap:7px; color:var(--paper); font-size:13px; }
