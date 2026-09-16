@@ -5,6 +5,7 @@ const services = {
   "/services/glass": {
     title: "زجاج سيكوريت وواجهات زجاجية في الرياض | مؤسسة مثابة",
     shortTitle: "أعمال الزجاج والسيكوريت",
+    serviceTypes: ["زجاج سيكوريت", "واجهات زجاجية", "كبائن شاور زجاج", "درابزينات زجاجية", "قواطع زجاجية"],
     description: "تنفيذ زجاج السيكوريت والواجهات الزجاجية وكبائن الشاور والدرابزينات في الرياض. معاينة وتنفيذ حسب احتياج مشروعك. تواصل مع مؤسسة مثابة.",
     localIntro: "تنفذ مؤسسة مثابة أعمال الزجاج السيكوريت والواجهات الزجاجية في الرياض، مع معاينة واضحة واختيار السماكة والتفاصيل المناسبة للمكان.",
     image: "/glass-facade_1281cb63_3c523186.jpg",
@@ -13,6 +14,7 @@ const services = {
   "/services/interior-decor": {
     title: "تصميم وتنفيذ الديكور الداخلي في الرياض | مؤسسة مثابة",
     shortTitle: "الديكور الداخلي",
+    serviceTypes: ["تصميم داخلي", "تنفيذ ديكور داخلي", "كسوات جدران", "بديل خشب", "تنسيق إضاءة"],
     description: "حلول ديكور داخلية وخارجية للمنازل والمكاتب والمساحات التجارية، من دراسة الاستخدام واختيار الخامات إلى التنفيذ والتركيب بما يناسب الميزانية.",
     localIntro: "تقدم مؤسسة مثابة خدمات الديكور الداخلي في الرياض للمنازل والمكاتب، مع تنسيق الخامات والكسوات والإضاءة بما يناسب الاستخدام والميزانية.",
     image: "/reception_32a5bffe_05c6fa3b.jpg",
@@ -21,6 +23,7 @@ const services = {
   "/services/woodwork": {
     title: "أعمال النجارة والديكورات الخشبية في الرياض | مؤسسة مثابة",
     shortTitle: "الأعمال الخشبية",
+    serviceTypes: ["نجارة مخصصة", "ديكورات خشبية", "دواليب وغرف نوم", "وحدات تلفاز", "كسوات خشبية"],
     description: "تنفيذ أعمال النجارة والديكورات الخشبية، من الشيبورد وMDF والمودرن إلى بديل الخشب، غرف النوم، الدواليب، وحدات التلفاز والكسوات والأثاث المخصص.",
     localIntro: "تنفذ مؤسسة مثابة أعمال النجارة والديكورات الخشبية في الرياض، بما يشمل الدواليب والكسوات ووحدات التلفاز والأثاث المصمم حسب المساحة.",
     image: "/built-in-lounge_7d8805b0_f1ed0f5e.jpg",
@@ -29,6 +32,7 @@ const services = {
   "/services/aluminum": {
     title: "أعمال الألمنيوم والواجهات الخارجية في الرياض | مؤسسة مثابة",
     shortTitle: "الألمنيوم والواجهات",
+    serviceTypes: ["أعمال ألمنيوم", "نوافذ وأبواب", "واجهات خارجية", "كلادينج", "قطاعات دبل جلاس"],
     description: "حلول الألمنيوم للنوافذ والأبواب وقطاعات دبل جلاس والواجهات والتكسيات الخارجية والكلادينج، مع اختيار عملي للخامة والتفاصيل المناسبة للمشروع.",
     localIntro: "توفر مؤسسة مثابة أعمال الألمنيوم والواجهات الخارجية في الرياض، من النوافذ والأبواب إلى التكسيات والكلادينج للمشاريع السكنية والتجارية.",
     image: "/glass-office_ff88266f_aac6aeb9.jpg",
@@ -80,7 +84,7 @@ export default function ServicePage({ path }: { path: string }) {
           "@id": `${canonical}#service`,
           inLanguage: "ar-SA",
           name: service.title,
-          serviceType: ["زجاج سيكوريت", "واجهات زجاجية", "كبائن شاور زجاج", "درابزينات زجاجية", "قواطع زجاجية"],
+          serviceType: service.serviceTypes,
           description: service.description,
           url: canonical,
           image: `https://mathabahksa.com${service.image}`,
@@ -92,7 +96,7 @@ export default function ServicePage({ path }: { path: string }) {
           "@id": `${canonical}#breadcrumb`,
           itemListElement: [
             { "@type": "ListItem", position: 1, name: "الرئيسية", item: "https://mathabahksa.com/" },
-            { "@type": "ListItem", position: 2, name: "أعمال الزجاج والسيكوريت", item: canonical },
+            { "@type": "ListItem", position: 2, name: service.shortTitle, item: canonical },
           ],
         },
       ],
@@ -102,13 +106,13 @@ export default function ServicePage({ path }: { path: string }) {
 
   return <div className="service-page" dir="rtl">
     <header className="service-page-header">
-      <a href="/" className="service-brand" aria-label="العودة إلى مؤسسة مثابة"><img src="/mathabah-logo-transparent_2365ed67.png" alt="مؤسسة مثابة" /></a>
+      <a href="/" className="service-brand" aria-label="العودة إلى مؤسسة مثابة"><img src="/mathabah-logo-dark-subtitle.png" alt="مؤسسة مثابة" /></a>
       <nav aria-label="روابط الخدمة"><a href="/">الرئيسية</a><a href="#details">تفاصيل الخدمة</a><a href="#contact">تواصل معنا</a></nav>
       <a className="service-phone" href="tel:+966565173798"><Phone size={15} /> اتصل بنا</a>
     </header>
     <main>
       <section className="service-hero">
-        <div className="service-hero-copy"><span className="eyebrow">مؤسسة مثابة · المملكة العربية السعودية</span><h1>{service.title}</h1><p>{service.description}</p><div className="service-actions"><a className="button button-copper" href="https://wa.me/966565173798?text=مرحبًا، أود طلب عرض لمشروع">اطلبوا عرضًا <MessageCircle size={17} /></a><a className="button button-ghost" href="/#work">شاهدوا الأعمال <ArrowDownLeft size={16} /></a></div></div>
+        <div className="service-hero-copy"><span className="eyebrow">مؤسسة مثابة · الرياض، السعودية</span><h1>{service.title}</h1><p>{service.description}</p><div className="service-actions"><a className="button button-copper" href="https://wa.me/966565173798?text=مرحبًا، أود طلب عرض لمشروع">اطلبوا عرضًا <MessageCircle size={17} /></a><a className="button button-ghost" href="/#work">شاهدوا الأعمال <ArrowDownLeft size={16} /></a></div></div>
         <div className="service-hero-image"><img src={service.image} alt={service.shortTitle} width={2000} height={1500} fetchPriority="high" decoding="async" /></div>
       </section>
       <section id="details" className="service-details"><div><span className="eyebrow">ما نقدمه</span><h2>تفاصيل تُبنى<br /><em>على احتياج المكان.</em></h2><p>نبدأ بفهم المساحة والاستخدام والميزانية، ثم نساعدكم في اختيار الخامة والتفاصيل قبل التنفيذ. هدفنا نتيجة جميلة وعملية وواضحة في كل مرحلة.</p><p>{service.localIntro}</p></div><div className="service-points">{service.points.map((point) => <div key={point}><Check size={17} /><span>{point}</span></div>)}</div></section>
