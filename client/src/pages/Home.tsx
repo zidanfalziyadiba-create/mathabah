@@ -99,6 +99,12 @@ export default function Home() {
     return () => { window.clearTimeout(openTimer); window.clearTimeout(closeTimer); };
   }, []);
   useEffect(() => { document.body.style.overflow = lightbox ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [lightbox, promoOpen]);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 300);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(""), 3200); return () => window.clearTimeout(timer); }, [toast]);
 
   const filteredGallery = useMemo(() => filter === "الكل" ? gallery : gallery.filter((item) => item.category === filter), [filter]);
@@ -158,7 +164,7 @@ export default function Home() {
 
     <footer><div className="footer-top"><img src={"/mathabah-logo-transparent_2365ed67.png"} alt="مثابة" /><p>زجاج وألمنيوم ونجارة وديكورات خشبية<br />تُنفذ بتفاصيل واضحة.</p><div className="footer-links"><span>روابط سريعة</span><a href="#expertise">خبرتنا</a><a href="#work">سجل الأعمال</a><a href="#identity">هويتنا</a></div><div className="socials"><span>قنوات التواصل</span>{socialChannels.map((channel) => <button key={channel.key} onClick={() => comingSoon(channel.name)} aria-label={`${channel.name} — ستتوفر القناة قريبًا`}><SocialGlyph type={channel.key} /> {channel.name}</button>)}</div></div><div className="footer-bottom"><span>© 2026 مؤسسة مثابة</span><span>نبني ما يُعتمد عليه</span></div></footer>
 
-    <div className="floating-actions"><a href="https://wa.me/966565173798" target="_blank" rel="noreferrer" aria-label="التواصل عبر واتساب" className="float-whatsapp"><BrandIcon name="whatsapp" label="WhatsApp" /></a><a href="tel:+966565173798" aria-label="الاتصال بمؤسسة مثابة" className="float-phone"><Phone /></a>{socialChannels.map((channel) => <button key={channel.key} className={`float-social float-${channel.key}`} onClick={() => comingSoon(channel.name)} aria-label={`${channel.name} — ستتوفر القناة قريبًا`}><SocialGlyph type={channel.key} /></button>)}{scrolled && <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="العودة إلى أعلى الصفحة" title="العودة إلى أعلى الصفحة" data-tooltip="العودة إلى أعلى الصفحة" className="float-top"><ArrowUp /></button>}</div>
+    <div className="floating-actions"><a href="https://wa.me/966565173798" target="_blank" rel="noreferrer" aria-label="التواصل عبر واتساب" className="float-whatsapp"><BrandIcon name="whatsapp" label="WhatsApp" /></a><a href="tel:+966565173798" aria-label="الاتصال بمؤسسة مثابة" className="float-phone"><Phone /></a>{socialChannels.map((channel) => <button key={channel.key} className={`float-social float-${channel.key}`} onClick={() => comingSoon(channel.name)} aria-label={`${channel.name} — ستتوفر القناة قريبًا`}><SocialGlyph type={channel.key} /></button>)}{scrolled && <button id="backToTop" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="الرجوع للأعلى" title="الرجوع للأعلى" data-tooltip="الرجوع للأعلى" className="floating-btn scroll-top-btn float-top"><ArrowUp /></button>}</div>
     <div className="chat-callout"><span>مرحبًا، كيف يمكننا مساعدتك في مشروعكم؟</span><a href="https://wa.me/966565173798" target="_blank" rel="noreferrer">تحدث معنا</a></div>
     {toast && <div className="toast" role="status"><Lock size={15} /> {toast}</div>}
     
