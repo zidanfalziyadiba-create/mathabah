@@ -80,6 +80,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [scrolled, setScrolled] = useState(false);
   const [announcementVisible, setAnnouncementVisible] = useState(true);
+  const [welcomeVisible, setWelcomeVisible] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("mathabah_theme") as "dark" | "light") || "light");
   const [adminOpen, setAdminOpen] = useState(() => initialAdminOpen || window.location.pathname === "/admin" || window.location.hash === "#admin" || new URLSearchParams(window.location.search).get("admin") === "1");
   const [adminUser, setAdminUser] = useState("admin");
@@ -107,6 +108,16 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
 
   useEffect(() => { const onScroll = () => setScrolled(window.scrollY > 300); onScroll(); window.addEventListener("scroll", onScroll, { passive: true }); return () => window.removeEventListener("scroll", onScroll); }, []);
   useEffect(() => { if (!toast) return; const t = window.setTimeout(() => setToast(""), 3300); return () => window.clearTimeout(t); }, [toast]);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("mathabah_welcome_seen_v1")) return;
+      sessionStorage.setItem("mathabah_welcome_seen_v1", "1");
+    } catch {}
+    const show = window.setTimeout(() => setWelcomeVisible(true), 700);
+    const hide = window.setTimeout(() => setWelcomeVisible(false), 5700);
+    return () => { window.clearTimeout(show); window.clearTimeout(hide); };
+  }, []);
 
   const fetchLeads = async (u = adminUser, p = adminPass) => { try { const r = await fetch("/api/admin/leads", { headers: { "X-Admin-User": u, "X-Admin-Password": p } }); const d = await r.json(); if (d?.ok) setLeads(d.leads || []); } catch {} };
 
@@ -158,6 +169,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   return (
     <div dir="rtl" className={`site-shell theme-${theme}`} id="home">
       {announcementVisible && siteData.announcement?.enabled && <div className="announcement" role="status"><div><div className="marquee"><span>{siteData.announcement.text1}</span><i>◆</i><span>{siteData.announcement.text2}</span><i>◆</i><span>{siteData.announcement.text1}</span><i>◆</i><span>{siteData.announcement.text2}</span></div></div><button onClick={() => setAnnouncementVisible(false)}><X size={14} /></button></div>}
+      {welcomeVisible && <div className="welcome-popover" role="status" aria-live="polite"><span className="welcome-mark"><Check size={17} /></span><span className="welcome-copy"><strong>أهلاً بك في مثابة</strong><small>حلول معمارية متكاملة، من الفكرة حتى التسليم.</small></span><button type="button" aria-label="إغلاق رسالة الترحيب" onClick={() => setWelcomeVisible(false)}><X size={16} /></button></div>}
       <header className={`site-header ${scrolled ? "is-scrolled" : ""}`}><a href="#home" className="brand"><img src={logoSrc} alt="مثابة" /></a><nav className={menuOpen ? "nav-open" : ""}><a href="#home">الرئيسية</a><a href="#work">أعمالنا</a><a href="#services">خدماتنا</a><a href="#identity">عن مثابة</a><a href="#contact" onClick={() => setMenuOpen(false)}>تواصل معنا</a><a className="nav-phone" href={`tel:${siteData.contact?.phoneRaw || "+966565173798"}`}><Phone size={15} /> {siteData.contact?.phoneNav || "056 517 3798"}</a></nav><div className="header-tools"><button className="theme-toggle" onClick={toggleTheme}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><button className="theme-toggle" title="لوحة تحكم الأدمن" onClick={() => { setDraft(siteData); setAdminOpen(true); }}><Settings size={16} /></button><button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button></div></header>
       <main>
         <section className="hero section-grid"><div className="hero-copy"><div className="mini-label">{siteData.hero?.badgeMain} <span>{siteData.hero?.badgeSub}</span></div><h1>{siteData.hero?.titleMain} <em>{siteData.hero?.titleAccent}</em></h1><p>{siteData.hero?.description}</p><div className="hero-actions"><a className="button button-copper" href="#contact">طلب استشارة <ArrowDownLeft size={16} /></a><a className="button button-ghost" href="#work">استعراض أعمالنا <ArrowDownLeft size={16} /></a></div><div className="hero-note"><Check size={15} /> تنفيذ مطابق للمواصفات المعمارية</div></div><div className="hero-visual"><img src={siteData.hero?.image || gallery[1]?.image} alt="أعمال مثابة" width={1920} height={1080} fetchPriority="high" decoding="async" /><div className="image-caption"><span>01</span><strong>{siteData.hero?.captionTitle}</strong><small>{siteData.hero?.captionSub}</small></div><div className="watermark" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>{siteData.branding?.useLogoInsteadOfM !== false ? <img src={siteData.branding?.watermarkLogo || "/mathabah-original-logo.png"} alt="شعار مثابة" style={{ width: "52px", height: "52px", objectFit: "contain", borderRadius: "10px" }} /> : <span>M</span>}<span style={{ fontSize: "0.72rem" }}>{siteData.branding?.watermarkText || "GLASS · ALUMINUM · WOODWORK"}</span></div></div></section>

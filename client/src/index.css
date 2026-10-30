@@ -297,3 +297,19 @@ html[data-theme="dark"], body[data-theme="dark"] { background:#11110f; color:#f3
   color: #171512;
   border-color: rgba(23,21,18,.7);
 }
+
+/* Faster edge-to-edge announcement and a brief, non-blocking welcome note. */
+.announcement { width:100%; overflow:hidden; }
+.announcement > div { width:100%; min-width:0; overflow:hidden; padding-inline:54px; }
+.marquee { width:max-content; animation:marquee 18s linear infinite; will-change:transform; }
+@keyframes marquee { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+.welcome-popover { position:fixed; z-index:10002; left:50%; bottom:24px; width:min(430px,calc(100vw - 32px)); display:grid; grid-template-columns:36px minmax(0,1fr) 28px; align-items:center; gap:11px; padding:13px 15px; border:1px solid rgba(201,155,104,.72); border-radius:14px; background:rgba(27,26,23,.96); color:#f5f0e8; box-shadow:0 14px 42px rgba(0,0,0,.26); backdrop-filter:blur(14px); animation:welcomeIn .28s var(--ease) both; }
+.welcome-mark { width:34px; height:34px; display:grid; place-items:center; border-radius:50%; background:rgba(201,155,104,.17); color:#e0b47d; }
+.welcome-copy { min-width:0; display:grid; gap:3px; text-align:right; }
+.welcome-copy strong { color:#e1b47d; font-size:13px; font-weight:600; }
+.welcome-copy small { color:#d3ccc1; font-size:11px; line-height:1.55; }
+.welcome-popover > button { width:28px; height:28px; display:grid; place-items:center; border-radius:50%; background:transparent; color:#bcb4a8; }
+.welcome-popover > button:hover,.welcome-popover > button:focus-visible { background:rgba(255,255,255,.09); color:#fff; }
+@keyframes welcomeIn { from { opacity:0; transform:translate(-50%,10px); } to { opacity:1; transform:translate(-50%,0); } }
+@media (max-width:800px) { .welcome-popover { bottom:calc(108px + env(safe-area-inset-bottom)); gap:9px; padding:11px 12px; } }
+@media (prefers-reduced-motion:reduce) { .marquee,.welcome-popover { animation:none!important; } }
