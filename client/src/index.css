@@ -338,3 +338,41 @@ html[data-theme="dark"], body[data-theme="dark"] { background:#11110f; color:#f3
 @keyframes promotionIn { from { opacity:0; transform:translateY(12px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
 @media (max-width:600px) { .promotion-backdrop { padding:14px; } .promotion-content { padding:21px; } .promotion-media { max-height:220px; } }
 @media (prefers-reduced-motion:reduce) { .promotion-dialog { animation:none; } }
+
+
+.admin-analytics { display:grid; gap:14px; color:#f5f2eb; }
+.admin-analytics-header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.admin-analytics-header h3 { margin:0 0 4px; color:#f5f2eb; font-size:1.05rem; }
+.admin-analytics-header p,.admin-analytics-chart-heading p { margin:0; color:#bdb7ac; font-size:.76rem; line-height:1.7; }
+.admin-analytics-refresh { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:7px 11px; border:1px solid rgba(201,150,92,.55); border-radius:8px; background:rgba(201,150,92,.12); color:#f2d3ad; cursor:pointer; }
+.admin-analytics-refresh:disabled { opacity:.65; cursor:wait; }
+.admin-analytics-spin { animation:adminAnalyticsSpin .8s linear infinite; }
+@keyframes adminAnalyticsSpin { to { transform:rotate(360deg); } }
+.admin-analytics-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:9px; }
+.admin-analytics-card { min-height:105px; display:flex; flex-direction:column; gap:7px; padding:12px; border:1px solid rgba(255,255,255,.11); border-radius:11px; background:rgba(255,255,255,.035); }
+.admin-analytics-card-top { display:flex; justify-content:space-between; align-items:center; gap:8px; color:#d1cabe; font-size:.74rem; }
+.admin-analytics-card strong { color:#fffdf8; font-size:1.55rem; line-height:1.15; font-variant-numeric:tabular-nums; }
+.admin-analytics-card small { color:#aaa398; font-size:.67rem; line-height:1.6; }
+.admin-analytics-card.tone-live .admin-analytics-card-top svg { color:#8fe1b0; }
+.admin-analytics-card.tone-visitors .admin-analytics-card-top svg { color:#e5b77c; }
+.admin-analytics-card.tone-views .admin-analytics-card-top svg { color:#9fc9f2; }
+.admin-analytics-card.tone-leads .admin-analytics-card-top svg { color:#a8dfc1; }
+.admin-analytics-card.tone-total .admin-analytics-card-top svg,.admin-analytics-card.tone-rate .admin-analytics-card-top svg { color:#d7b8ef; }
+.admin-analytics-chart { padding:14px; border:1px solid rgba(255,255,255,.11); border-radius:11px; background:rgba(255,255,255,.025); }
+.admin-analytics-chart-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.admin-analytics-chart-heading h4 { margin:0 0 4px; color:#f5f2eb; font-size:.9rem; }
+.admin-analytics-legend { display:flex; gap:12px; flex-wrap:wrap; color:#c9c2b6; font-size:.69rem; }
+.admin-analytics-legend span { display:inline-flex; align-items:center; gap:5px; }
+.admin-analytics-legend i { display:inline-block; width:9px; height:9px; border-radius:2px; }
+.legend-visitors,.bar-visitors { background:#c9965c; }
+.legend-leads,.bar-leads { background:#7bc7a0; }
+.admin-analytics-bars { display:grid; grid-template-columns:repeat(7,minmax(42px,1fr)); gap:8px; overflow-x:auto; margin-top:16px; padding:0 2px 3px; }
+.admin-analytics-day { min-width:40px; display:grid; grid-template-rows:17px 122px auto; gap:5px; align-items:end; text-align:center; }
+.admin-analytics-bar-values { display:flex; justify-content:center; gap:10px; color:#cfc8bd; font-size:.62rem; font-variant-numeric:tabular-nums; }
+.admin-analytics-bar-pair { height:120px; display:flex; align-items:flex-end; justify-content:center; gap:5px; border-bottom:1px solid rgba(255,255,255,.13); }
+.admin-analytics-bar-pair i { display:block; width:12px; min-height:0; max-height:120px; border-radius:4px 4px 0 0; }
+.admin-analytics-day small { color:#bdb7ac; font-size:.66rem; white-space:nowrap; }
+.admin-analytics-empty { display:grid; min-height:120px; place-items:center; color:#bdb7ac; font-size:.8rem; }
+.admin-analytics-privacy { margin:0; padding:10px 12px; border-inline-start:3px solid #c9965c; border-radius:5px; background:rgba(201,150,92,.07); color:#d0c8bc; font-size:.7rem; line-height:1.8; }
+@media (max-width:520px) { .admin-analytics-card { min-height:98px; padding:10px; } .admin-analytics-card strong { font-size:1.35rem; } .admin-analytics-chart { padding:11px; } }
+@media (prefers-reduced-motion:reduce) { .admin-analytics-spin { animation:none; } }

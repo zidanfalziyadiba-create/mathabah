@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDownLeft, ArrowUp, Check, ChevronLeft, ChevronRight, Database, ExternalLink, Eye, Gift, Image as ImageIcon, KeyRound, Layers, Loader2, Lock, LogOut, MapPin, Menu, MessageCircle, Moon, Phone, Plus, RefreshCw, Save, Settings, Share2, ShieldCheck, Sun, Trash2, Upload, Users, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUp, BarChart3, Check, ChevronLeft, ChevronRight, Database, ExternalLink, Eye, Gift, Image as ImageIcon, KeyRound, Layers, Loader2, Lock, LogOut, MapPin, Menu, MessageCircle, Moon, Phone, Plus, RefreshCw, Save, Settings, Share2, ShieldCheck, Sun, Trash2, Upload, Users, X } from "lucide-react";
+import AdminAnalytics from "../components/AdminAnalytics";
 import { siteConfig } from "../siteConfig";
 
 const P = "https:" + "//";
@@ -148,6 +149,9 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   const [isSaving, setIsSaving] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const [newPass, setNewPass] = useState("");
+  const [newPassConfirm, setNewPassConfirm] = useState("");
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const gallery = siteData.gallery || DEF_GALLERY;
   const services = siteData.services || DEF_SERVICES;
@@ -234,6 +238,24 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
 
   const fetchLeads = async () => { try { const r = await fetch("/api/admin/leads", { cache: "no-store", credentials: "same-origin" }); const d = await r.json(); if (r.ok && d?.ok) setLeads(d.leads || []); else if (r.status === 401) setAdminUnlocked(false); } catch {} };
 
+  const fetchAnalytics = useCallback(async (silent = false) => {
+    if (!silent) setAnalyticsLoading(true);
+    try {
+      const r = await fetch("/api/admin/analytics", { cache: "no-store", credentials: "same-origin" });
+      const d = await r.json();
+      if (r.ok && d?.ok) setAnalyticsData(d);
+      else if (r.status === 401) { setAdminUnlocked(false); setAnalyticsData(null); }
+    } catch {}
+    finally { if (!silent) setAnalyticsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (!adminUnlocked || adminTab !== "analytics") return;
+    void fetchAnalytics(false);
+    const timer = window.setInterval(() => void fetchAnalytics(true), 15_000);
+    return () => window.clearInterval(timer);
+  }, [adminUnlocked, adminTab, fetchAnalytics]);
+
   const loginAdmin = async (e: any) => {
     e.preventDefault();
     try {
@@ -245,6 +267,10 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   };
 
   const saveDb = async () => {
+    const username = adminUser.trim();
+    if (adminTab === "security" && (username.length < 3 || username.length > 80)) { setToast("اسم المستخدم يجب أن يكون بين 3 و80 حرفاً."); return; }
+    if (newPass.trim() && (newPass.trim().length < 12 || newPass.trim().length > 256)) { setToast("كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً."); return; }
+    if (newPass.trim() && newPass.trim() !== newPassConfirm.trim()) { setToast("تأكيد كلمة المرور غير مطابق."); return; }
     const promo = { ...DEF_PROMO, ...(draft.promotionalPopup || {}) };
     let savedPromo = { ...promo };
     if (promo.enabled) {
@@ -268,14 +294,19 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
     try {
       const r = await fetch("/api/site-data", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: payload }) });
       const res = await r.json();
-      if (r.ok && res?.ok) { const m = mergeData(res.data || payload); setSiteData(m); setDraft(m); if (newPass.trim()) setNewPass(""); setToast("تم حفظ التعديلات في قاعدة البيانات بنجاح"); }
+      if (r.ok && res?.ok) {
+        const m = mergeData(res.data || payload); setSiteData(m); setDraft(m);
+        if (newPass.trim()) { setNewPass(""); setNewPassConfirm(""); }
+        if (res.credentialsChanged) { setAdminUnlocked(false); setAdminPass(""); setLeads([]); setAnalyticsData(null); setToast("تم تحديث بيانات الدخول وإنهاء الجلسات السابقة؛ سجّل الدخول بالبيانات الجديدة."); }
+        else setToast("تم حفظ التعديلات في قاعدة البيانات بنجاح");
+      }
       else { if (r.status === 401) setAdminUnlocked(false); setToast(res?.error || "تعذر حفظ التعديلات في قاعدة البيانات"); }
     } catch { setToast("تعذر الاتصال بالخادم؛ لم يتم حفظ التعديلات"); }
     setIsSaving(false);
   };
 
   const delLead = async (id: string) => { try { const r = await fetch(`/api/admin/leads?id=${encodeURIComponent(id)}`, { method: "DELETE", credentials: "same-origin" }); const d = await r.json(); if (r.ok && d?.ok) setLeads(d.leads || []); else if (r.status === 401) setAdminUnlocked(false); } catch {} };
-  const logoutAdmin = async () => { try { await fetch("/api/admin/logout", { method: "POST", credentials: "same-origin" }); } catch {} setAdminUnlocked(false); setAdminPass(""); setNewPass(""); setLeads([]); };
+  const logoutAdmin = async () => { try { await fetch("/api/admin/logout", { method: "POST", credentials: "same-origin" }); } catch {} setAdminUnlocked(false); setAdminPass(""); setNewPass(""); setNewPassConfirm(""); setAnalyticsData(null); setLeads([]); };
   const filteredGallery = useMemo(() => filter === "الكل" ? gallery : gallery.filter((i: any) => i.category === filter), [filter, gallery]);
   const selectFilter = (next: string) => { if (next === filter) return; setIsFiltering(true); window.setTimeout(() => { setFilter(next); window.setTimeout(() => setIsFiltering(false), 40); }, 150); };
   const toggleTheme = () => { const next = theme === "dark" ? "light" : "dark"; setTheme(next); localStorage.setItem("mathabah_theme", next); document.documentElement.dataset.theme = next; document.body.dataset.theme = next; };
@@ -329,13 +360,13 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
               <form onSubmit={loginAdmin} style={{ display: "grid", gap: "12px" }}>
                 <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب الأدمن لتغيير صور المعرض، الشعار، وروابط فيسبوك وواتساب وإنستغرام وسناب شات وتيك توك بدون تعديل الأكواد:</p>
                 <label style={lbCss}>اسم المستخدم<input value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>
-                <label style={lbCss}>كلمة المرور<input type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} placeholder="أدخل كلمة المرور المؤقتة التي زُودت بها" style={inCss} /></label>
+                <label style={lbCss}>كلمة المرور<input type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} placeholder="أدخل كلمة مرور حساب الأدمن" autoComplete="current-password" style={inCss} /></label>
                 <button type="submit" className="button button-copper" style={{ width: "100%", justifyContent: "center" }}><ShieldCheck size={16} /> دخول إلى لوحة الإعدادات</button>
               </form>
             ) : (
               <div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                  {[{ id: "gallery", l: "صور ومعرض الأعمال", ic: <ImageIcon size={14} /> }, { id: "social", l: "روابط فيسبوك وواتساب والسوشيال", ic: <Share2 size={14} /> }, { id: "hero", l: "الشعار والواجهة", ic: <Settings size={14} /> }, { id: "services", l: "الخدمات", ic: <Layers size={14} /> }, { id: "promo", l: "العروض المنبثقة", ic: <Gift size={14} /> }, { id: "leads", l: `طلبات العملاء (${leads.length})`, ic: <Users size={14} /> }, { id: "security", l: "حساب الأدمن", ic: <KeyRound size={14} /> }].map((t: any) => <button key={t.id} type="button" onClick={() => { setAdminTab(t.id); if (t.id === "leads") fetchLeads(); }} style={{ ...btCss, borderColor: adminTab === t.id ? "#c9965c" : "rgba(255,255,255,0.12)", background: adminTab === t.id ? "rgba(201,150,92,0.22)" : "rgba(255,255,255,0.04)" }}>{t.ic} {t.l}</button>)}
+                  {[{ id: "gallery", l: "صور ومعرض الأعمال", ic: <ImageIcon size={14} /> }, { id: "social", l: "روابط فيسبوك وواتساب والسوشيال", ic: <Share2 size={14} /> }, { id: "hero", l: "الشعار والواجهة", ic: <Settings size={14} /> }, { id: "services", l: "الخدمات", ic: <Layers size={14} /> }, { id: "analytics", l: "تحليلات الموقع", ic: <BarChart3 size={14} /> }, { id: "promo", l: "العروض المنبثقة", ic: <Gift size={14} /> }, { id: "leads", l: `طلبات العملاء (${leads.length})`, ic: <Users size={14} /> }, { id: "security", l: "حساب الأدمن", ic: <KeyRound size={14} /> }].map((t: any) => <button key={t.id} type="button" onClick={() => { setAdminTab(t.id); if (t.id === "leads") fetchLeads(); }} style={{ ...btCss, borderColor: adminTab === t.id ? "#c9965c" : "rgba(255,255,255,0.12)", background: adminTab === t.id ? "rgba(201,150,92,0.22)" : "rgba(255,255,255,0.04)" }}>{t.ic} {t.l}</button>)}
                 </div>
                 {adminTab === "gallery" && (
                   <div style={{ display: "grid", gap: "12px" }}>
@@ -385,6 +416,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                     ))}
                   </div>
                 )}
+                {adminTab === "analytics" && <AdminAnalytics data={analyticsData} loading={analyticsLoading} onRefresh={() => void fetchAnalytics(false)} />}
                 {adminTab === "promo" && (
                   <div style={{ display: "grid", gap: "12px" }}>
                     <div style={{ border: "1px solid rgba(201,150,92,.35)", background: "rgba(201,150,92,.08)", padding: "12px", borderRadius: "10px", lineHeight: 1.8 }}>
@@ -416,8 +448,10 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                 )}
                 {adminTab === "security" && (
                   <div style={{ display: "grid", gap: "10px" }}>
-                    <div style={lbCss}>اسم المستخدم الحالي<div style={{ ...inCss, boxSizing: "border-box" }}>{adminUser}</div></div>
-                    <label style={lbCss}>كلمة مرور جديدة للأدمن<input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="12 حرفاً على الأقل؛ اتركه فارغاً للإبقاء على الحالية" style={inCss} /></label>
+                    <p style={{ margin: 0, opacity: 0.82, lineHeight: 1.8 }}>غيّر اسم المستخدم أو كلمة المرور. لا تُعرض كلمة المرور الحالية؛ عند تغيير بيانات الدخول تُنهى الجلسات السابقة وتحتاج إلى تسجيل الدخول مجدداً.</p>
+                    <label style={lbCss}>اسم المستخدم<input type="text" minLength={3} maxLength={80} autoComplete="username" value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>
+                    <label style={lbCss}>كلمة مرور جديدة<input type="password" minLength={12} maxLength={256} autoComplete="new-password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="اتركها فارغة للإبقاء على الحالية" style={inCss} /></label>
+                    <label style={lbCss}>تأكيد كلمة المرور الجديدة<input type="password" minLength={12} maxLength={256} autoComplete="new-password" value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)} placeholder="أعد كتابة كلمة المرور الجديدة" style={inCss} /></label>
                     <button type="button" onClick={logoutAdmin} style={{ ...btCss, color: "#ff9e9e", width: "fit-content" }}><LogOut size={14} /> تسجيل الخروج</button>
                   </div>
                 )}

@@ -23,6 +23,10 @@ async function ensureSchema(env: Env): Promise<void> {
     schemaPromise = (async () => {
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS mathabah_store (id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL)").run();
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS customer_leads (id TEXT PRIMARY KEY, name TEXT NOT NULL, project TEXT NOT NULL, location TEXT NOT NULL DEFAULT '', details TEXT NOT NULL, created_at TEXT NOT NULL)").run();
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_daily (day TEXT PRIMARY KEY, page_views INTEGER NOT NULL DEFAULT 0, unique_visitors INTEGER NOT NULL DEFAULT 0)").run();
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_daily_visitors (day TEXT NOT NULL, visitor_hash TEXT NOT NULL, PRIMARY KEY(day, visitor_hash))").run();
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS analytics_live_sessions (visitor_hash TEXT PRIMARY KEY, last_seen_at INTEGER NOT NULL)").run();
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_analytics_live_seen ON analytics_live_sessions(last_seen_at)").run();
     })().catch((error) => { schemaPromise = null; throw error; });
   }
   await schemaPromise;
@@ -104,7 +108,9 @@ async function signSession(value: string, secret: string): Promise<string> {
 }
 
 async function createAdminSession(env: Env, username: string): Promise<string> {
-  const payload = base64UrlEncode(JSON.stringify({ username, exp: Math.floor(Date.now() / 1000) + ADMIN_SESSION_TTL }));
+  const stored = await readRecord(env, "site_data");
+  const sessionVersion = Number(stored?.adminAuth?.sessionVersion || 0);
+  const payload = base64UrlEncode(JSON.stringify({ username, sessionVersion, exp: Math.floor(Date.now() / 1000) + ADMIN_SESSION_TTL }));
   return `${payload}.${await signSession(payload, env.ADMIN_PASSWORD || "")}`;
 }
 
@@ -120,6 +126,8 @@ async function getAdminSession(request: Request, env: Env): Promise<string | nul
   try {
     const session = JSON.parse(base64UrlDecode(payload));
     if (!session?.username || !Number.isFinite(session.exp) || session.exp <= Math.floor(Date.now() / 1000)) return null;
+    const stored = await readRecord(env, "site_data");
+    if (Number(session.sessionVersion || 0) !== Number(stored?.adminAuth?.sessionVersion || 0)) return null;
     return cleanText(session.username, 80) || null;
   } catch { return null; }
 }
@@ -134,6 +142,75 @@ function cleanText(value: unknown, max: number): string {
 
 function isSameOrigin(request: Request, url: URL): boolean {
   return request.headers.get("Origin") === url.origin;
+}
+
+function riyadhDayKey(value = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const values: Record<string, string> = {};
+  for (const part of parts) if (part.type !== "literal") values[part.type] = part.value;
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function riyadhStartIso(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, date) - 3 * 60 * 60 * 1000).toISOString();
+}
+
+async function analyticsVisitorHash(day: string, sessionId: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${day}:${sessionId}`));
+  return toHex(new Uint8Array(digest));
+}
+
+async function trackAnalyticsEvent(env: Env, event: string, sessionId: string): Promise<void> {
+  await ensureSchema(env);
+  const now = Date.now();
+  const day = riyadhDayKey(new Date(now));
+  const visitorHash = await analyticsVisitorHash(day, sessionId);
+
+  if (event === "page_view") {
+    const inserted = await env.DB.prepare("INSERT OR IGNORE INTO analytics_daily_visitors (day, visitor_hash) VALUES (?, ?)").bind(day, visitorHash).run();
+    const isNewVisitor = Number(inserted?.meta?.changes || 0) > 0 ? 1 : 0;
+    await env.DB.prepare("INSERT INTO analytics_daily (day, page_views, unique_visitors) VALUES (?, 1, ?) ON CONFLICT(day) DO UPDATE SET page_views = page_views + 1, unique_visitors = unique_visitors + excluded.unique_visitors")
+      .bind(day, isNewVisitor).run();
+  }
+
+  await env.DB.prepare("INSERT INTO analytics_live_sessions (visitor_hash, last_seen_at) VALUES (?, ?) ON CONFLICT(visitor_hash) DO UPDATE SET last_seen_at = excluded.last_seen_at")
+    .bind(visitorHash, now).run();
+}
+
+async function readAnalytics(env: Env): Promise<Record<string, any>> {
+  await ensureSchema(env);
+  const now = Date.now();
+  const today = riyadhDayKey(new Date(now));
+  const todayStart = riyadhStartIso(today);
+  const dayKeys = Array.from({ length: 7 }, (_, index) => riyadhDayKey(new Date(now - (6 - index) * 24 * 60 * 60 * 1000)));
+  const firstDay = dayKeys[0];
+  const [active, dailyRows, leadsTotalRow, leadsTodayRow, leadTrendRows] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS count FROM analytics_live_sessions WHERE last_seen_at >= ?").bind(now - 90_000).first(),
+    env.DB.prepare("SELECT day, page_views AS pageViews, unique_visitors AS visitors FROM analytics_daily WHERE day >= ? ORDER BY day ASC").bind(firstDay).all(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM customer_leads").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM customer_leads WHERE created_at >= ?").bind(todayStart).first(),
+    env.DB.prepare("SELECT date(created_at, '+3 hours') AS day, COUNT(*) AS leads FROM customer_leads WHERE created_at >= ? GROUP BY date(created_at, '+3 hours')").bind(riyadhStartIso(firstDay)).all(),
+  ]);
+  const dailyMap = new Map((dailyRows?.results || []).map((row: any) => [row.day, row]));
+  const leadMap = new Map((leadTrendRows?.results || []).map((row: any) => [row.day, Number(row.leads || 0)]));
+  const daily = dayKeys.map((day) => {
+    const row: any = dailyMap.get(day) || {};
+    return { day, visitors: Number(row.visitors || 0), pageViews: Number(row.pageViews || 0), leads: Number(leadMap.get(day) || 0) };
+  });
+  const todayRow: any = dailyMap.get(today) || {};
+
+  return {
+    summary: {
+      activeVisitors: Number(active?.count || 0),
+      visitorsToday: Number(todayRow.visitors || 0),
+      pageViewsToday: Number(todayRow.pageViews || 0),
+      leadsToday: Number(leadsTodayRow?.count || 0),
+      leadsTotal: Number(leadsTotalRow?.count || 0),
+    },
+    daily,
+    updatedAt: new Date(now).toISOString(),
+  };
 }
 
 async function handleApi(request: Request, env: Env, url: URL, path: string): Promise<Response | null> {
@@ -183,7 +260,14 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
       const submittedAuth = body.data.adminAuth || {};
       const username = cleanText(submittedAuth.username || sessionUsername || existing.adminAuth?.username || "admin", 80);
       if (!username) return jsonResponse({ ok: false, error: "اسم المستخدم مطلوب" }, 400);
-      const nextAdminAuth = { ...(existing.adminAuth || {}), username };
+      const previousAdminAuth = existing.adminAuth || {};
+      const previousUsername = String(previousAdminAuth.username || "admin").trim().toLowerCase();
+      const credentialsChanged = username.toLowerCase() !== previousUsername || Boolean(submittedAuth.newPassword);
+      const nextAdminAuth = {
+        ...previousAdminAuth,
+        username,
+        sessionVersion: Number(previousAdminAuth.sessionVersion || 0) + (credentialsChanged ? 1 : 0),
+      };
       delete nextAdminAuth.password;
       if (submittedAuth.newPassword) {
         const newPassword = String(submittedAuth.newPassword);
@@ -196,9 +280,39 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
       const payload = { ...existing, ...publicFields, adminAuth: nextAdminAuth, updatedAt: new Date().toISOString() };
       await writeRecord(env, "site_data", payload);
       const { adminAuth: _privateAuth, ...safeData } = payload;
-      return jsonResponse({ ok: true, data: safeData });
+      return jsonResponse({ ok: true, data: safeData, credentialsChanged }, 200, credentialsChanged ? { "Set-Cookie": sessionCookie("", 0) } : {});
     } catch {
       return jsonResponse({ ok: false, error: "فشل الحفظ في قاعدة البيانات؛ لم يتم تأكيد التغييرات" }, 503);
+    }
+  }
+
+  if (path === "/api/analytics/event") {
+    if (request.method !== "POST") return jsonResponse({ ok: false, error: "طريقة غير مدعومة" }, 405);
+    if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
+    if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("application/json")) return jsonResponse({ ok: false, error: "نوع المحتوى غير مدعوم" }, 415);
+    let body: any;
+    try {
+      const raw = await request.text();
+      if (new TextEncoder().encode(raw).length > 1024) return jsonResponse({ ok: false, error: "حجم الطلب كبير" }, 413);
+      body = JSON.parse(raw);
+    } catch { return jsonResponse({ ok: false, error: "بيانات التحليلات غير صالحة" }, 400); }
+    if (!body || !["page_view", "heartbeat"].includes(body.event) || !/^[0-9a-f-]{36}$/i.test(String(body.sessionId || ""))) {
+      return jsonResponse({ ok: false, error: "حدث التحليلات غير صالح" }, 400);
+    }
+    try {
+      await trackAnalyticsEvent(env, body.event, body.sessionId);
+      return jsonResponse({ ok: true });
+    } catch {
+      return jsonResponse({ ok: false, error: "تعذر تسجيل إحصاءات الزيارة" }, 503);
+    }
+  }
+
+  if (path === "/api/admin/analytics" && request.method === "GET") {
+    if (!await getAdminSession(request, env)) return jsonResponse({ ok: false, error: "غير مصرح" }, 401);
+    try {
+      return jsonResponse({ ok: true, ...(await readAnalytics(env)) });
+    } catch {
+      return jsonResponse({ ok: false, error: "تعذر قراءة إحصاءات الموقع" }, 503);
     }
   }
 
@@ -290,5 +404,15 @@ export default {
       .replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${service.title}" />`)
       .replace(/<meta name="twitter:description" content="[^"]*"\s*\/>/, `<meta name="twitter:description" content="${service.description}" />`);
     return new Response(updated, { status: response.status, statusText: response.statusText, headers: response.headers });
+  },
+  async scheduled(_controller: unknown, env: Env): Promise<void> {
+    await ensureSchema(env);
+    const now = Date.now();
+    const liveCutoff = now - 48 * 60 * 60 * 1000;
+    const visitorCutoff = riyadhDayKey(new Date(now - 365 * 24 * 60 * 60 * 1000));
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM analytics_live_sessions WHERE last_seen_at < ?").bind(liveCutoff),
+      env.DB.prepare("DELETE FROM analytics_daily_visitors WHERE day < ?").bind(visitorCutoff),
+    ]);
   },
 };
