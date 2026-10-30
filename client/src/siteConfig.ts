@@ -3,7 +3,7 @@
 // ==========================================
 // @ts-nocheck
 const WA_PREFIX = "https:" + "//wa.me/";
-const MAPS_DEFAULT = "https:" + "//maps.google.com";
+const MAPS_DEFAULT = "";
 
 export const siteConfig = {
   branding: {
@@ -57,7 +57,7 @@ export const siteConfig = {
   },
   socialLinks: {
     whatsapp: { show: true, url: WA_PREFIX + "966565173798" },
-    googleMaps: { show: true, url: MAPS_DEFAULT },
+    googleMaps: { show: false, url: MAPS_DEFAULT },
     facebook: { show: true, url: "" },
     instagram: { show: true, url: "" },
     tiktok: { show: true, url: "" },

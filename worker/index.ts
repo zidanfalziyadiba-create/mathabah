@@ -11,8 +11,8 @@ const JSON_HEADERS = {
   "X-Content-Type-Options": "nosniff",
 };
 
-function jsonResponse(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+function jsonResponse(data: unknown, status = 200, extraHeaders: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(data), { status, headers: { ...JSON_HEADERS, ...extraHeaders } });
 }
 
 let schemaPromise: Promise<void> | null = null;
@@ -78,8 +78,62 @@ async function verifyAdmin(env: Env, userIn: string, passIn: string): Promise<bo
   return constantTimeEqual(password, env.ADMIN_PASSWORD);
 }
 
+const ADMIN_SESSION_COOKIE = "mathabah_admin_session";
+const ADMIN_SESSION_TTL = 8 * 60 * 60;
+
+function base64UrlEncode(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function base64UrlDecode(value: string): string {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(base64 + "=".repeat((4 - base64.length % 4) % 4));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+async function signSession(value: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
+  let binary = "";
+  for (const byte of signature) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function createAdminSession(env: Env, username: string): Promise<string> {
+  const payload = base64UrlEncode(JSON.stringify({ username, exp: Math.floor(Date.now() / 1000) + ADMIN_SESSION_TTL }));
+  return `${payload}.${await signSession(payload, env.ADMIN_PASSWORD || "")}`;
+}
+
+async function getAdminSession(request: Request, env: Env): Promise<string | null> {
+  if (!env.ADMIN_PASSWORD) return null;
+  const cookie = request.headers.get("Cookie") || "";
+  const raw = cookie.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${ADMIN_SESSION_COOKIE}=`))?.slice(ADMIN_SESSION_COOKIE.length + 1);
+  if (!raw) return null;
+  const [payload, signature, extra] = raw.split(".");
+  if (!payload || !signature || extra !== undefined) return null;
+  const expected = await signSession(payload, env.ADMIN_PASSWORD);
+  if (!constantTimeEqual(signature, expected)) return null;
+  try {
+    const session = JSON.parse(base64UrlDecode(payload));
+    if (!session?.username || !Number.isFinite(session.exp) || session.exp <= Math.floor(Date.now() / 1000)) return null;
+    return cleanText(session.username, 80) || null;
+  } catch { return null; }
+}
+
+function sessionCookie(value: string, maxAge: number): string {
+  return `${ADMIN_SESSION_COOKIE}=${value}; Path=/api; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Strict`;
+}
+
 function cleanText(value: unknown, max: number): string {
   return String(value || "").trim().slice(0, max);
+}
+
+function isSameOrigin(request: Request, url: URL): boolean {
+  return request.headers.get("Origin") === url.origin;
 }
 
 async function handleApi(request: Request, env: Env, url: URL, path: string): Promise<Response | null> {
@@ -94,25 +148,40 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
     }
   }
 
+  if (path === "/api/admin/session" && request.method === "GET") {
+    const username = await getAdminSession(request, env);
+    return username ? jsonResponse({ ok: true, username }) : jsonResponse({ ok: false }, 401);
+  }
+
+  if (path === "/api/admin/logout" && request.method === "POST") {
+    if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
+    return jsonResponse({ ok: true }, 200, { "Set-Cookie": sessionCookie("", 0) });
+  }
+
   if (path === "/api/admin/login" && request.method === "POST") {
+    if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
     try {
       const body = await request.json() as any;
       const ok = await verifyAdmin(env, body.username, body.password);
       if (!ok) return jsonResponse({ ok: false, error: "اسم المستخدم أو كلمة المرور غير صحيحة" }, 401);
-      return jsonResponse({ ok: true, username: cleanText(body.username, 80) });
+      const username = cleanText(body.username, 80);
+      const token = await createAdminSession(env, username);
+      return jsonResponse({ ok: true, username }, 200, { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_TTL) });
     } catch {
       return jsonResponse({ ok: false, error: "تعذر التحقق من الدخول أو قاعدة البيانات" }, 503);
     }
   }
 
   if (path === "/api/site-data" && request.method === "POST") {
+    if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
     try {
+      const sessionUsername = await getAdminSession(request, env);
+      if (!sessionUsername) return jsonResponse({ ok: false, error: "انتهت جلسة الإدارة؛ سجّل الدخول مجدداً" }, 401);
       const body = await request.json() as any;
-      if (!await verifyAdmin(env, body.username, body.password)) return jsonResponse({ ok: false, error: "غير مصرح لك بالحفظ" }, 401);
       if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) return jsonResponse({ ok: false, error: "بيانات الموقع غير صالحة" }, 400);
       const existing = (await readRecord(env, "site_data")) || {};
       const submittedAuth = body.data.adminAuth || {};
-      const username = cleanText(submittedAuth.username || body.username || existing.adminAuth?.username || "admin", 80);
+      const username = cleanText(submittedAuth.username || sessionUsername || existing.adminAuth?.username || "admin", 80);
       if (!username) return jsonResponse({ ok: false, error: "اسم المستخدم مطلوب" }, 400);
       const nextAdminAuth = { ...(existing.adminAuth || {}), username };
       delete nextAdminAuth.password;
@@ -153,8 +222,9 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
 
   if (path === "/api/admin/leads") {
     if (request.method !== "GET" && request.method !== "DELETE") return jsonResponse({ ok: false, error: "طريقة غير مدعومة" }, 405);
+    if (request.method === "DELETE" && !isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
     try {
-      if (!await verifyAdmin(env, request.headers.get("X-Admin-User") || "", request.headers.get("X-Admin-Password") || "")) return jsonResponse({ ok: false, error: "غير مصرح" }, 401);
+      if (!await getAdminSession(request, env)) return jsonResponse({ ok: false, error: "غير مصرح" }, 401);
       await ensureSchema(env);
       if (request.method === "DELETE") {
         const id = url.searchParams.get("id");
@@ -182,6 +252,12 @@ export default {
     }
 
     const response = await env.ASSETS.fetch(request);
+    if (path === "/admin" && response.headers.get("content-type")?.includes("text/html")) {
+      const headers = new Headers(response.headers);
+      headers.set("X-Robots-Tag", "noindex, nofollow");
+      const html = (await response.text()).replace("</head>", '<meta name="robots" content="noindex,nofollow" /></head>');
+      return new Response(html, { status: response.status, statusText: response.statusText, headers });
+    }
     const metadata: Record<string, { title: string; description: string }> = {
       "/services/glass": {
         title: "أعمال الزجاج والسيكوريت وكبائن الشاور في الرياض والسعودية",

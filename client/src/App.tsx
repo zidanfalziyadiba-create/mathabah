@@ -10,6 +10,7 @@ const servicePaths = new Set([
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
+  if (path === "/admin") return <Home initialAdminOpen />;
   if (servicePaths.has(path)) return <ServicePage path={path} />;
-  return <Home initialAdminOpen={path === "/admin"} />;
+  return <Home />;
 }
