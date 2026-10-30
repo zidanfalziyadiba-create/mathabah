@@ -1,125 +1,66 @@
-import { useEffect } from "react";
+// @ts-nocheck
+import { useEffect, useState } from "react";
 import { ArrowDownLeft, Check, MessageCircle, Phone } from "lucide-react";
 
-const services = {
+const P = "https:" + "//";
+const WA_BASE = P + "wa" + ".me/";
+
+export const services: Record<string, any> = {
   "/services/glass": {
-    title: "زجاج سيكوريت وواجهات زجاجية في الرياض | مؤسسة مثابة",
-    shortTitle: "أعمال الزجاج والسيكوريت",
-    serviceTypes: ["زجاج سيكوريت", "واجهات زجاجية", "كبائن شاور زجاج", "درابزينات زجاجية", "قواطع زجاجية"],
-    description: "تنفيذ زجاج السيكوريت والواجهات الزجاجية وكبائن الشاور والدرابزينات في الرياض. معاينة وتنفيذ حسب احتياج مشروعك. تواصل مع مؤسسة مثابة.",
-    localIntro: "تنفذ مؤسسة مثابة أعمال الزجاج السيكوريت والواجهات الزجاجية في الرياض، مع معاينة واضحة واختيار السماكة والتفاصيل المناسبة للمكان.",
+    title: "أعمال الزجاج المعماري والسيكوريت في الرياض", shortTitle: "أعمال الزجاج والسيكوريت",
+    description: "تنفيذ أعمال الزجاج السيكوريت والواجهات الزجاجية والقواطع والدرابزينات في الرياض بأعلى معايير الجودة والسلامة.",
+    localIntro: "نقدم في مؤسسة مثابة حلولاً متكاملة في أعمال الزجاج المعماري والسيكوريت داخل مدينة الرياض، مع التركيز على الدقة في التصنيع والتركيب لتلبية متطلبات المشاريع السكنية والتجارية.",
     image: "/glass-facade_1281cb63_3c523186.jpg",
-    points: ["واجهات زجاجية واستركشر", "كبائن شاور وزجاج سيكوريت", "قواطع دبل جلاس ودرابزينات زجاجية", "معاينة وتنسيق قبل التنفيذ"],
-  },
-  "/services/interior-decor": {
-    title: "تصميم وتنفيذ الديكور الداخلي في الرياض | مؤسسة مثابة",
-    shortTitle: "الديكور الداخلي",
-    serviceTypes: ["تصميم داخلي", "تنفيذ ديكور داخلي", "كسوات جدران", "بديل خشب", "تنسيق إضاءة"],
-    description: "حلول ديكور داخلية وخارجية للمنازل والمكاتب والمساحات التجارية، من دراسة الاستخدام واختيار الخامات إلى التنفيذ والتركيب بما يناسب الميزانية.",
-    localIntro: "تقدم مؤسسة مثابة خدمات الديكور الداخلي في الرياض للمنازل والمكاتب، مع تنسيق الخامات والكسوات والإضاءة بما يناسب الاستخدام والميزانية.",
-    image: "/reception_32a5bffe_05c6fa3b.jpg",
-    points: ["ديكورات داخلية وخارجية للمنازل والمكاتب", "جدران وكسوات وبديل خشب", "تنسيق الخامات والإضاءة", "تنفيذ منظم وتسليم واضح"],
-  },
-  "/services/woodwork": {
-    title: "أعمال النجارة والديكورات الخشبية في الرياض | مؤسسة مثابة",
-    shortTitle: "الأعمال الخشبية",
-    serviceTypes: ["نجارة مخصصة", "ديكورات خشبية", "دواليب وغرف نوم", "وحدات تلفاز", "كسوات خشبية"],
-    description: "تنفيذ أعمال النجارة والديكورات الخشبية، من الشيبورد وMDF والمودرن إلى بديل الخشب، غرف النوم، الدواليب، وحدات التلفاز والكسوات والأثاث المخصص.",
-    localIntro: "تنفذ مؤسسة مثابة أعمال النجارة والديكورات الخشبية في الرياض، بما يشمل الدواليب والكسوات ووحدات التلفاز والأثاث المصمم حسب المساحة.",
-    image: "/built-in-lounge_7d8805b0_f1ed0f5e.jpg",
-    points: ["مطابخ ووحدات شيبورد وMDF", "غرف نوم ودواليب وملابس", "أثاث مودرن ووحدات تلفاز وكونسولات", "كسوات وجدران وأعمال نجارة مخصصة"],
+    points: ["واجهات زجاجية استركشر ومزدوجة عازلة", "قواطع زجاجية للمكاتب والمنازل", "درابزينات زجاجية للسلالم والشرفات", "كبائن شاور زجاجية فاخرة"],
   },
   "/services/aluminum": {
-    title: "أعمال الألمنيوم والواجهات الخارجية في الرياض | مؤسسة مثابة",
-    shortTitle: "الألمنيوم والواجهات",
-    serviceTypes: ["أعمال ألمنيوم", "نوافذ وأبواب", "واجهات خارجية", "كلادينج", "قطاعات دبل جلاس"],
-    description: "حلول الألمنيوم للنوافذ والأبواب وقطاعات دبل جلاس والواجهات والتكسيات الخارجية والكلادينج، مع اختيار عملي للخامة والتفاصيل المناسبة للمشروع.",
-    localIntro: "توفر مؤسسة مثابة أعمال الألمنيوم والواجهات الخارجية في الرياض، من النوافذ والأبواب إلى التكسيات والكلادينج للمشاريع السكنية والتجارية.",
+    title: "أعمال الألمنيوم والواجهات الخارجية في الرياض", shortTitle: "أعمال الألمنيوم والواجهات",
+    description: "تصنيع وتركيب أعمال الألمنيوم للنوافذ والأبواب والواجهات والكلادينج والقباب السماوية بأعلى مواصفات العزل والمتانة.",
+    localIntro: "نقدم في مؤسسة مثابة حلولاً متكاملة في أعمال الألمنيوم والواجهات داخل مدينة الرياض، مع التركيز على جودة القطاعات والأكسسوارات لضمان أفضل أداء معماري.",
     image: "/glass-office_ff88266f_aac6aeb9.jpg",
-    points: ["أبواب ونوافذ وقطاعات دبل جلاس", "واجهات وتكسيات كلادينج", "قواطع وأعمال استركشر", "تنسيق اللون والخامة مع الواجهة"],
+    points: ["نوافذ وأبواب ألمنيوم دبل جلاس عازلة للحرارة والصوت", "واجهات وتكسيات كلادينج واستركشر للمباني", "قباب سماوية ومظلات لكسان", "قطاعات خاصة بمواصفات هندسية عالية"],
   },
-} as const;
-
-type ServiceKey = keyof typeof services;
+  "/services/interior-decor": {
+    title: "تصميم وتنفيذ الديكور الداخلي في الرياض", shortTitle: "التصميم والديكور الداخلي",
+    description: "حلول ديكور داخلية وخارجية للمنازل والمكاتب والمساحات التجارية، من دراسة الاستخدام واختيار الخامات إلى التنفيذ والتركيب.",
+    localIntro: "تقدم مؤسسة مثابة خدمات الديكور الداخلي في الرياض للمنازل والمكاتب، مع تنسيق الخامات والكسوات والإضاءة بما يناسب الاستخدام والميزانية.",
+    image: "/mathabah-architectural-texture_423c537d_e9b373de.webp",
+    points: ["ديكورات داخلية وخارجية للمنازل والمكاتب", "جدران وكسوات فاخرة وبديل خشب وبديل رخام", "تنسيق الخامات والأسقف المستعارة والإضاءة", "تنفيذ منظم وتسليم واضح في الموعد"],
+  },
+  "/services/woodwork": {
+    title: "الأعمال الخشبية والنجارة المعمارية في الرياض", shortTitle: "الأعمال الخشبية والنجارة",
+    description: "تنفيذ الأعمال الخشبية المخصصة والأبواب والخزائن والتكسيات الدافئة التي تمنح المكان هوية متوازنة وعملية.",
+    localIntro: "ننفذ في مؤسسة مثابة بالرياض كافة أعمال النجارة والديكورات الخشبية المخصصة بتفصيل دقيق يناسب المساحات السكنية والتجارية.",
+    image: "/built-in-lounge_7d8805b0_f1ed0f5e.jpg",
+    points: ["تفصيل أبواب خشبية وتكسيات جدارية معاصرة", "جلسات داخلية وخزائن ومكتبات مدمجة", "دمج الخشب مع الزجاج والألمنيوم والإضاءة", "خامات عالية الجودة تدوم طويلاً"],
+  },
+};
 
 export default function ServicePage({ path }: { path: string }) {
-  const service = services[path as ServiceKey] || services["/services/interior-decor"];
-  const canonical = `https://mathabahksa.com${path}`;
+  const [cms, setCms] = useState<any>(null);
+  useEffect(() => { fetch("/api/site-data").then(r => r.json()).then(d => { if (d?.ok && d?.data) setCms(d.data); }).catch(() => {}); }, []);
+  const service = services[path] || services["/services/glass"];
+  const wa = cms?.contact?.whatsappRaw || "966565173798";
+  const phone = cms?.contact?.phoneRaw || "+966565173798";
 
-  useEffect(() => {
-    document.title = service.title;
-    document.querySelector('meta[name="description"]')?.setAttribute("content", service.description);
-    document.querySelector('link[rel="canonical"]')?.setAttribute("href", canonical);
+  useEffect(() => { document.title = service.title; }, [service]);
 
-    const meta = (selector: string, attribute: "name" | "property", key: string, value: string) => {
-      let tag = document.querySelector<HTMLMetaElement>(selector);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute(attribute, key);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", value);
-    };
-    meta('meta[property="og:title"]', "property", "og:title", service.title);
-    meta('meta[property="og:description"]', "property", "og:description", service.description);
-    meta('meta[property="og:url"]', "property", "og:url", canonical);
-    meta('meta[property="og:image"]', "property", "og:image", `https://mathabahksa.com${service.image}`);
-    meta('meta[name="twitter:title"]', "name", "twitter:title", service.title);
-    meta('meta[name="twitter:description"]', "name", "twitter:description", service.description);
-    meta('meta[name="twitter:image"]', "name", "twitter:image", `https://mathabahksa.com${service.image}`);
-
-    const schemaId = "service-page-schema";
-    let schema = document.getElementById(schemaId);
-    if (!schema) {
-      schema = document.createElement("script");
-      schema.id = schemaId;
-      schema.setAttribute("type", "application/ld+json");
-      document.head.appendChild(schema);
-    }
-    schema.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "Service",
-          "@id": `${canonical}#service`,
-          inLanguage: "ar-SA",
-          name: service.title,
-          serviceType: service.serviceTypes,
-          description: service.description,
-          url: canonical,
-          image: `https://mathabahksa.com${service.image}`,
-          provider: { "@id": "https://mathabahksa.com/#business" },
-          areaServed: { "@type": "City", name: "الرياض", containedInPlace: { "@type": "Country", name: "المملكة العربية السعودية" } },
-        },
-        {
-          "@type": "BreadcrumbList",
-          "@id": `${canonical}#breadcrumb`,
-          itemListElement: [
-            { "@type": "ListItem", position: 1, name: "الرئيسية", item: "https://mathabahksa.com/" },
-            { "@type": "ListItem", position: 2, name: service.shortTitle, item: canonical },
-          ],
-        },
-      ],
-    });
-    return () => document.getElementById(schemaId)?.remove();
-  }, [canonical, service]);
-
-  return <div className="service-page" dir="rtl">
-    <header className="service-page-header">
-      <a href="/" className="service-brand" aria-label="العودة إلى مؤسسة مثابة"><img src="/mathabah-logo-dark-subtitle.png" alt="مؤسسة مثابة" /></a>
-      <nav aria-label="روابط الخدمة"><a href="/">الرئيسية</a><a href="#details">تفاصيل الخدمة</a><a href="#contact">تواصل معنا</a></nav>
-      <a className="service-phone" href="tel:+966565173798"><Phone size={15} /> اتصل بنا</a>
-    </header>
-    <main>
-      <section className="service-hero">
-        <div className="service-hero-copy"><span className="eyebrow">مؤسسة مثابة · الرياض، السعودية</span><h1>{service.title}</h1><p>{service.description}</p><div className="service-actions"><a className="button button-copper" href="https://wa.me/966565173798?text=مرحبًا، أود طلب عرض لمشروع">اطلبوا عرضًا <MessageCircle size={17} /></a><a className="button button-ghost" href="/#work">شاهدوا الأعمال <ArrowDownLeft size={16} /></a></div></div>
-        <div className="service-hero-image"><img src={service.image} alt={service.shortTitle} width={2000} height={1500} fetchPriority="high" decoding="async" /></div>
-      </section>
-      <section id="details" className="service-details"><div><span className="eyebrow">ما نقدمه</span><h2>تفاصيل تُبنى<br /><em>على احتياج المكان.</em></h2><p>نبدأ بفهم المساحة والاستخدام والميزانية، ثم نساعدكم في اختيار الخامة والتفاصيل قبل التنفيذ. هدفنا نتيجة جميلة وعملية وواضحة في كل مرحلة.</p><p>{service.localIntro}</p></div><div className="service-points">{service.points.map((point) => <div key={point}><Check size={17} /><span>{point}</span></div>)}</div></section>
-      <section id="contact" className="service-contact"><span className="eyebrow">لنبدأ الحديث</span><h2>مشروعكم يستحق<br /><em>خطوة واضحة.</em></h2><p>أرسلوا المدينة ونوع العمل والمساحة التقريبية عبر واتساب، وسنعود إليكم بالتفاصيل الأولية.</p><a className="button button-dark" href="https://wa.me/966565173798?text=مرحبًا، أود مناقشة مشروع مع مؤسسة مثابة"><MessageCircle size={17} /> تواصلوا عبر واتساب</a></section>
-    </main>
-    <footer className="service-footer"><span>© 2026 مؤسسة مثابة</span><a href="/">العودة إلى الموقع الرئيسي</a></footer>
-  </div>;
+  return (
+    <div className="service-page" dir="rtl">
+      <header className="service-page-header">
+        <a href="/" className="service-brand" aria-label="الرئيسية مثابة"><img src={cms?.branding?.logoDark || "/mathabah-logo-dark-subtitle.png"} alt="مثابة" /></a>
+        <nav aria-label="التنقل الرئيسي"><a href="/#services">خدماتنا</a><a href="#details">التفاصيل</a><a href="#contact">تواصل معنا</a></nav>
+        <a className="service-phone" href={`tel:${phone}`}><Phone size={15} /> تواصل</a>
+      </header>
+      <main>
+        <section className="service-hero">
+          <div className="service-hero-copy"><span className="eyebrow">مؤسسة مثابة · الرياض</span><h1>{service.title}</h1><p>{service.description}</p><div className="service-actions"><a className="button button-copper" href={`${WA_BASE}${wa}?text=${encodeURIComponent(`السلام عليكم، أرغب في طلب عرض سعر لخدمة: ${service.shortTitle}`)}`} target="_blank" rel="noreferrer"><MessageCircle size={17} /></a><a className="button button-ghost" href="/#work">أعمالنا <ArrowDownLeft size={16} /></a></div></div>
+          <div className="service-hero-image"><img src={service.image} alt={service.shortTitle} width={2000} height={1500} fetchPriority="high" decoding="async" /></div>
+        </section>
+        <section id="details" className="service-details"><div><span className="eyebrow">عن الخدمة</span><h2>الحلول المعمارية <br /><em>في الرياض.</em></h2><p>نقدم في مثابة حلولاً متكاملة تضمن أعلى معايير الجودة والدقة في التنفيذ. نعمل على تلبية احتياجات مشروعك بأعلى مواصفات.</p><p>{service.localIntro}</p></div><div className="service-points">{service.points.map((point: string) => <div key={point}><Check size={17} /><span>{point}</span></div>)}</div></section>
+        <section id="contact" className="service-contact"><span className="eyebrow">تواصل معنا</span><h2>جاهز لبدء مشروعك؟ <br /><em>تواصل معنا.</em></h2><p>نحن هنا لمساعدتك في تحقيق رؤيتك المعمارية. تواصل معنا اليوم للحصول على استشارة مجانية وعرض سعر مخصص.</p><a className="button button-dark" href={`${WA_BASE}${wa}?text=${encodeURIComponent(`السلام عليكم، أرغب في طلب عرض سعر لخدمة: ${service.shortTitle}`)}`} target="_blank" rel="noreferrer"><MessageCircle size={17} /> تواصل عبر واتسآب</a></section>
+      </main>
+      <footer className="service-footer"><span>© 2026 مؤسسة مثابة</span><a href="/">الرئيسية</a></footer>
+    </div>
+  );
 }
-
-export { services };

@@ -1,4 +1,4 @@
-﻿import ServicePage from "./pages/ServicePage";
+import ServicePage from "./pages/ServicePage";
 import Home from "./pages/Home";
 
 const servicePaths = new Set([
@@ -10,5 +10,6 @@ const servicePaths = new Set([
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
-  return servicePaths.has(path) ? <ServicePage path={path} /> : <Home />;
+  if (servicePaths.has(path)) return <ServicePage path={path} />;
+  return <Home initialAdminOpen={path === "/admin"} />;
 }

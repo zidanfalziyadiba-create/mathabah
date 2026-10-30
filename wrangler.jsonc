@@ -7,5 +7,13 @@
     "directory": "./dist/public",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mathabah-cms-prod",
+      "database_id": "7142c7a0-ee4e-4678-8169-54b15ea90067",
+      "migrations_dir": "./worker/migrations"
+    }
+  ]
 }
