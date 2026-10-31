@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ArrowDownLeft, ArrowUp, BarChart3, Check, ChevronLeft, ChevronRight, Database, ExternalLink, Eye, Gift, Image as ImageIcon, KeyRound, Layers, Loader2, Lock, LogOut, MapPin, Menu, MessageCircle, Moon, Phone, Plus, RefreshCw, Save, Settings, Share2, ShieldCheck, Sun, Trash2, Upload, Users, X } from "lucide-react";
 import AdminAnalytics from "../components/AdminAnalytics";
 import { siteConfig } from "../siteConfig";
+import { calculatePromotionWindow, isPromotionActive, nextPromotionTimerDelay, promotionCloseDeadlineMs, promotionCooldownMs, promotionDelayMs } from "../lib/promotionTiming";
 
 const P = "https:" + "//";
 const WA_BASE = P + "wa" + ".me/";
@@ -75,8 +76,7 @@ async function compressImg(file: File, maxW = 1300): Promise<string> {
 function mergeData(inc: any) {
   if (!inc || typeof inc !== "object") return DEF_DATA;
   const promotionalPopup = { ...DEF_PROMO, ...(inc.promotionalPopup || {}) };
-  const expiry = Date.parse(promotionalPopup.expiresAt || "");
-  promotionalPopup.enabled = promotionalPopup.enabled === true && Boolean(promotionalPopup.campaignId) && Number.isFinite(expiry) && expiry > Date.now();
+  promotionalPopup.enabled = isPromotionActive(promotionalPopup);
   return {
     ...DEF_DATA, ...inc,
     announcement: { ...DEF_DATA.announcement, ...(inc.announcement || {}) },
@@ -214,12 +214,12 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
     const expiresAt = Date.parse(promo.expiresAt || "");
     if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return;
     const key = `mathabah_promo_seen_${promo.campaignId}`;
-    const cooldownMs = Math.max(1, Math.min(720, Number(promo.repeatAfterHours) || 24)) * 60 * 60 * 1000;
+    const cooldownMs = promotionCooldownMs(promo.repeatAfterHours);
     try {
       const lastShown = Number(localStorage.getItem(key) || 0);
       if (lastShown && Date.now() - lastShown < cooldownMs) return;
     } catch {}
-    const delay = Math.max(0, Math.min(300, Number(promo.delaySeconds) || 0)) * 1000;
+    const delay = promotionDelayMs(promo.delaySeconds);
     const timer = window.setTimeout(() => {
       if (Date.now() >= expiresAt) return;
       setPromotionVisible(true);
@@ -230,11 +230,16 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
 
   useEffect(() => {
     if (!promotionVisible) return;
-    const seconds = Math.max(0, Math.min(300, Number(currentPromotion.visibleSeconds) || 0));
-    if (!seconds) return;
-    const timer = window.setTimeout(() => setPromotionVisible(false), seconds * 1000);
-    return () => window.clearTimeout(timer);
-  }, [promotionVisible, currentPromotion.visibleSeconds]);
+    const closeAt = promotionCloseDeadlineMs(currentPromotion.expiresAt, currentPromotion.visibleSeconds);
+    let timer: number | undefined;
+    const scheduleClose = () => {
+      const delay = nextPromotionTimerDelay(closeAt);
+      if (delay === 0) { setPromotionVisible(false); return; }
+      timer = window.setTimeout(scheduleClose, delay);
+    };
+    scheduleClose();
+    return () => { if (timer !== undefined) window.clearTimeout(timer); };
+  }, [promotionVisible, currentPromotion.expiresAt, currentPromotion.visibleSeconds]);
 
   const fetchLeads = async () => { try { const r = await fetch("/api/admin/leads", { cache: "no-store", credentials: "same-origin" }); const d = await r.json(); if (r.ok && d?.ok) setLeads(d.leads || []); else if (r.status === 401) setAdminUnlocked(false); } catch {} };
 
@@ -278,16 +283,16 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
       const duration = Number(promo.durationValue);
       const unit = promo.durationUnit === "hours" ? "hours" : "days";
       const maxDuration = unit === "hours" ? 8760 : 365;
-      if (!Number.isFinite(duration) || duration < 1 || duration > maxDuration) { setToast(`مدة العرض يجب أن تكون بين ساعة واحدة و${maxDuration} ${unit === "hours" ? "ساعة" : "يوماً"}.`); return; }
+      if (!Number.isInteger(duration) || duration < 1 || duration > maxDuration) { setToast("مدة العرض يجب أن تكون عدداً صحيحاً ضمن الحد المسموح."); return; }
       if (!Number.isInteger(Number(promo.delaySeconds)) || Number(promo.delaySeconds) < 0 || Number(promo.delaySeconds) > 300) { setToast("تأخير الظهور يجب أن يكون بين 0 و300 ثانية."); return; }
       if (!Number.isInteger(Number(promo.repeatAfterHours)) || Number(promo.repeatAfterHours) < 1 || Number(promo.repeatAfterHours) > 720) { setToast("فاصل التكرار يجب أن يكون بين ساعة و720 ساعة."); return; }
       if (!Number.isInteger(Number(promo.visibleSeconds)) || Number(promo.visibleSeconds) < 0 || Number(promo.visibleSeconds) > 300) { setToast("الإغلاق التلقائي يجب أن يكون بين 0 و300 ثانية."); return; }
       if (promo.mediaType === "video" && !isSafeVideoSource(promo.videoUrl)) { setToast("أدخل رابط HTTPS مباشراً لملف فيديو MP4 أو WebM أو OGG."); return; }
       if (promo.mediaType === "image" && promo.image && !isSafeImageSource(promo.image)) { setToast("مصدر صورة العرض غير صالح."); return; }
       if (promo.buttonUrl && !safePopupAction(promo.buttonUrl)) { setToast("رابط زر العرض يجب أن يكون HTTPS أو رابطاً داخلياً صالحاً."); return; }
-      const startMs = Date.parse(promo.startedAt || "") || Date.now();
-      const endMs = startMs + duration * (unit === "hours" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000);
-      savedPromo = { ...promo, durationValue: duration, durationUnit: unit, startedAt: new Date(startMs).toISOString(), expiresAt: new Date(endMs).toISOString(), campaignId: promo.campaignId || makeCampaignId() };
+      const schedule = calculatePromotionWindow(promo);
+      if (!schedule) { setToast("تعذّر حساب انتهاء صلاحية العرض؛ راجع المدة."); return; }
+      savedPromo = { ...promo, durationValue: duration, durationUnit: unit, ...schedule, campaignId: promo.campaignId || makeCampaignId() };
     }
     setIsSaving(true);
     const payload = { ...draft, promotionalPopup: savedPromo, stats: DEF_STATS, adminAuth: { username: adminUser.trim() || "admin", ...(newPass.trim() ? { newPassword: newPass.trim() } : {}) } };
@@ -421,13 +426,13 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                   <div style={{ display: "grid", gap: "12px" }}>
                     <div style={{ border: "1px solid rgba(201,150,92,.35)", background: "rgba(201,150,92,.08)", padding: "12px", borderRadius: "10px", lineHeight: 1.8 }}>
                       <strong style={{ color: "#e4bd8d" }}>نافذة عرض اختيارية — متوقفة افتراضياً</strong>
-                      <div style={{ fontSize: "0.8rem", opacity: 0.9 }}>لا يراها الزوار ما لم تفعّلها وتحفظ التغييرات. استخدم «معاينة غير منشورة» لاختبار شكلها داخل الإدارة فقط.</div>
+                      <div style={{ fontSize: "0.8rem", opacity: 0.9 }}>لا يراها الزوار ما لم تفعّلها وتحفظ التغييرات. «مدة الصلاحية» والإغلاق يخصان نافذة العرض فقط؛ الموقع العام يبقى متاحاً. استخدم «معاينة غير منشورة» لاختبار شكلها داخل الإدارة.</div>
                     </div>
                     <label style={{ ...lbCss, display: "flex", alignItems: "center", gap: "8px" }}><input type="checkbox" checked={draftPromotion.enabled === true} onChange={(e) => { const enabled = e.target.checked; setDraft({ ...draft, promotionalPopup: { ...draftPromotion, enabled, ...(enabled ? { startedAt: "", expiresAt: "", campaignId: makeCampaignId() } : {}) } }); }} /> تفعيل العرض للزوار عند الحفظ</label>
                     <label style={lbCss}>عنوان العرض<input maxLength={90} value={draftPromotion.title || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, title: e.target.value } })} placeholder="مثال: عرض خاص على الواجهات الزجاجية" style={inCss} /></label>
                     <label style={lbCss}>تفاصيل العرض<textarea maxLength={500} rows={3} value={draftPromotion.description || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, description: e.target.value } })} placeholder="اكتب تفاصيل العرض وشروطه بوضوح" style={inCss} /></label>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "8px" }}>
-                      <label style={lbCss}>مدة الحملة<select value={draftPromotion.durationUnit || "days"} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, durationUnit: e.target.value } })} style={inCss}><option value="hours">ساعات</option><option value="days">أيام</option></select></label>
+                      <label style={lbCss}>مدة صلاحية العرض<select value={draftPromotion.durationUnit || "days"} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, durationUnit: e.target.value } })} style={inCss}><option value="hours">ساعات</option><option value="days">أيام</option></select></label>
                       <label style={lbCss}>المدة ({draftPromotion.durationUnit === "hours" ? "ساعة" : "يوم"})<input type="number" min="1" max={draftPromotion.durationUnit === "hours" ? 8760 : 365} value={draftPromotion.durationValue ?? 7} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, durationValue: e.target.value } })} style={inCss} /></label>
                       <label style={lbCss}>التأخير بعد فتح الموقع (ثانية)<input type="number" min="0" max="300" value={draftPromotion.delaySeconds ?? 3} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, delaySeconds: e.target.value } })} style={inCss} /></label>
                       <label style={lbCss}>الفاصل قبل إعادة الظهور (ساعة)<input type="number" min="1" max="720" value={draftPromotion.repeatAfterHours ?? 24} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, repeatAfterHours: e.target.value } })} style={inCss} /></label>
