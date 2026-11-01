@@ -57,10 +57,12 @@ function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function hashPassword(password: string, saltHex: string): Promise<string> {
+const PASSWORD_HASH_ITERATIONS = 100_000;
+
+async function hashPassword(password: string, saltHex: string, iterations = PASSWORD_HASH_ITERATIONS): Promise<string> {
   const salt = new Uint8Array(saltHex.match(/.{2}/g)?.map((part) => parseInt(part, 16)) || []);
   const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" }, material, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, material, 256);
   return toHex(new Uint8Array(bits));
 }
 
@@ -98,8 +100,10 @@ async function verifyAdmin(env: Env, userIn: string, passIn: string, onStage?: (
   onStage?.("validate_username");
   if (!user || !password || !constantTimeEqual(user, expectedUser)) return false;
   if (auth.passwordHash && auth.passwordSalt) {
+    const iterations = Number(auth.passwordIterations ?? PASSWORD_HASH_ITERATIONS);
+    if (!Number.isInteger(iterations) || iterations < 1 || iterations > PASSWORD_HASH_ITERATIONS) return false;
     onStage?.("derive_password_hash");
-    const candidateHash = await hashPassword(password, auth.passwordSalt);
+    const candidateHash = await hashPassword(password, auth.passwordSalt, iterations);
     onStage?.("compare_password_hash");
     return constantTimeEqual(candidateHash, auth.passwordHash);
   }
@@ -307,6 +311,7 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
         if (newPassword.length < 12 || newPassword.length > 256) return jsonResponse({ ok: false, error: "كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً" }, 400);
         const salt = freshSalt();
         nextAdminAuth.passwordSalt = salt;
+        nextAdminAuth.passwordIterations = PASSWORD_HASH_ITERATIONS;
         nextAdminAuth.passwordHash = await hashPassword(newPassword, salt);
       }
       const { adminAuth: _untrustedAuth, ...publicFields } = body.data;
