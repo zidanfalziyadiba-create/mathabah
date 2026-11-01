@@ -584,12 +584,19 @@ export default {
       headers.delete("Content-Length");
       headers.delete("ETag");
       if (typeof HTMLRewriter !== "undefined") {
-        const rewritten = new HTMLRewriter().on("head", { element(element: any) {
-          element.append('<meta name="robots" content="noindex,nofollow" />', { html: true });
-        } }).transform(response);
+        const rewritten = new HTMLRewriter()
+          .on("meta", { element(element: any) {
+            if (String(element.getAttribute("name") || "").toLowerCase() === "robots") element.remove();
+          } })
+          .on("head", { element(element: any) {
+            element.append('<meta name="robots" content="noindex,nofollow" />', { html: true });
+          } })
+          .transform(response);
         return new Response(rewritten.body, { status: rewritten.status, statusText: rewritten.statusText, headers });
       }
-      const html = (await response.text()).replace("</head>", '<meta name="robots" content="noindex,nofollow" /></head>');
+      const html = (await response.text())
+        .replace(/<meta\s+name=["']robots["'][^>]*>\s*/gi, "")
+        .replace("</head>", '<meta name="robots" content="noindex,nofollow" /></head>');
       return new Response(html, { status: response.status, statusText: response.statusText, headers });
     }
     const metadata: Record<string, { title: string; description: string }> = {
