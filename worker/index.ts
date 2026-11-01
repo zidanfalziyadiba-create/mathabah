@@ -402,6 +402,11 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, "") || "/";
+    if (path === "/robots.txt" && request.method === "GET") {
+      return new Response("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/admin\nSitemap: https://mathabahksa.com/sitemap.xml\n", {
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store, max-age=0" },
+      });
+    }
     if (path.startsWith("/api/")) {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Allow": "GET, POST, DELETE, OPTIONS", "Cache-Control": "no-store" } });
       const response = await handleApi(request, env, url, path);
