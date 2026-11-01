@@ -34,7 +34,7 @@ function AnalyticsBeacon({ path, disabled }: { path: string; disabled: boolean }
     };
 
     send("page_view", true);
-    const timer = window.setInterval(() => send("heartbeat"), 30_000);
+    const timer = window.setInterval(() => send("heartbeat"), 60_000);
     const onVisibility = () => {
       if (document.visibilityState === "visible") send("heartbeat");
     };
