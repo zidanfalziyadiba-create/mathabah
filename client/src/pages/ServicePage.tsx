@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useEffect, useState } from "react";
-import { ArrowDownLeft, Check, MessageCircle, Phone } from "lucide-react";
+import { ArrowDownLeft, Check, MessageCircle, Moon, Phone, Sun } from "lucide-react";
 
 const P = "https:" + "//";
 const WA_BASE = P + "wa" + ".me/";
@@ -38,7 +38,13 @@ export const services: Record<string, any> = {
 
 export default function ServicePage({ path }: { path: string }) {
   const [cms, setCms] = useState<any>(null);
+  const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("mathabah_theme") as "dark" | "light") || "light");
   useEffect(() => { fetch("/api/site-data").then(r => r.json()).then(d => { if (d?.ok && d?.data) setCms(d.data); }).catch(() => {}); }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
+    localStorage.setItem("mathabah_theme", theme);
+  }, [theme]);
   const service = services[path] || services["/services/glass"];
   const wa = cms?.contact?.whatsappRaw || "966565173798";
   const phone = cms?.contact?.phoneRaw || "+966565173798";
@@ -46,11 +52,11 @@ export default function ServicePage({ path }: { path: string }) {
   useEffect(() => { document.title = service.title; }, [service]);
 
   return (
-    <div className="service-page" dir="rtl">
+    <div className={`service-page theme-${theme}`} dir="rtl">
       <header className="service-page-header">
         <a href="/" className="service-brand" aria-label="الرئيسية مثابة"><img src={cms?.branding?.logoDark || "/mathabah-logo-dark-subtitle.png"} alt="مثابة" /></a>
         <nav aria-label="التنقل الرئيسي"><a href="/#services">خدماتنا</a><a href="#details">التفاصيل</a><a href="#contact">تواصل معنا</a></nav>
-        <a className="service-phone" href={`tel:${phone}`}><Phone size={15} /> تواصل</a>
+        <div className="service-header-actions"><button type="button" className="theme-toggle service-theme-toggle" aria-label={theme === "dark" ? "تفعيل الوضع النهاري" : "تفعيل الوضع الليلي"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}</button><a className="service-phone" href={`tel:${phone}`}><Phone size={15} /> تواصل</a></div>
       </header>
       <main>
         <section className="service-hero">
