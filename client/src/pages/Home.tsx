@@ -150,6 +150,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   const [leads, setLeads] = useState<any[]>([]);
   const [newPass, setNewPass] = useState("");
   const [newPassConfirm, setNewPassConfirm] = useState("");
+  const [adminFeedback, setAdminFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
@@ -272,42 +273,59 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   };
 
   const saveDb = async () => {
+    const isSecuritySave = adminTab === "security";
     const username = adminUser.trim();
-    if (adminTab === "security" && (username.length < 3 || username.length > 80)) { setToast("اسم المستخدم يجب أن يكون بين 3 و80 حرفاً."); return; }
-    if (newPass.trim() && (newPass.trim().length < 12 || newPass.trim().length > 256)) { setToast("كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً."); return; }
-    if (newPass.trim() && newPass.trim() !== newPassConfirm.trim()) { setToast("تأكيد كلمة المرور غير مطابق."); return; }
+    const passwordToSave = isSecuritySave ? newPass.trim() : "";
+    const notify = (message: string, kind: "success" | "error" = "error") => {
+      setAdminFeedback({ kind, message });
+      setToast(message);
+    };
+    setAdminFeedback(null);
+    if (isSecuritySave && (username.length < 3 || username.length > 80)) { notify("اسم المستخدم يجب أن يكون بين 3 و80 حرفاً."); return; }
+    if (passwordToSave && (passwordToSave.length < 12 || passwordToSave.length > 256)) { notify("كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً."); return; }
+    if (passwordToSave && passwordToSave !== newPassConfirm.trim()) { notify("تأكيد كلمة المرور غير مطابق."); return; }
     const promo = { ...DEF_PROMO, ...(draft.promotionalPopup || {}) };
     let savedPromo = { ...promo };
-    if (promo.enabled) {
-      if (!String(promo.title || "").trim()) { setToast("أضف عنواناً للعرض قبل تفعيله."); return; }
+    if (adminTab === "promo" && promo.enabled) {
+      if (!String(promo.title || "").trim()) { notify("أضف عنواناً للعرض قبل تفعيله."); return; }
       const duration = Number(promo.durationValue);
       const unit = promo.durationUnit === "hours" ? "hours" : "days";
       const maxDuration = unit === "hours" ? 8760 : 365;
-      if (!Number.isInteger(duration) || duration < 1 || duration > maxDuration) { setToast("مدة العرض يجب أن تكون عدداً صحيحاً ضمن الحد المسموح."); return; }
-      if (!Number.isInteger(Number(promo.delaySeconds)) || Number(promo.delaySeconds) < 0 || Number(promo.delaySeconds) > 300) { setToast("تأخير الظهور يجب أن يكون بين 0 و300 ثانية."); return; }
-      if (!Number.isInteger(Number(promo.repeatAfterHours)) || Number(promo.repeatAfterHours) < 1 || Number(promo.repeatAfterHours) > 720) { setToast("فاصل التكرار يجب أن يكون بين ساعة و720 ساعة."); return; }
-      if (!Number.isInteger(Number(promo.visibleSeconds)) || Number(promo.visibleSeconds) < 0 || Number(promo.visibleSeconds) > 300) { setToast("الإغلاق التلقائي يجب أن يكون بين 0 و300 ثانية."); return; }
-      if (promo.mediaType === "video" && !isSafeVideoSource(promo.videoUrl)) { setToast("أدخل رابط HTTPS مباشراً لملف فيديو MP4 أو WebM أو OGG."); return; }
-      if (promo.mediaType === "image" && promo.image && !isSafeImageSource(promo.image)) { setToast("مصدر صورة العرض غير صالح."); return; }
-      if (promo.buttonUrl && !safePopupAction(promo.buttonUrl)) { setToast("رابط زر العرض يجب أن يكون HTTPS أو رابطاً داخلياً صالحاً."); return; }
+      if (!Number.isInteger(duration) || duration < 1 || duration > maxDuration) { notify("مدة العرض يجب أن تكون عدداً صحيحاً ضمن الحد المسموح."); return; }
+      if (!Number.isInteger(Number(promo.delaySeconds)) || Number(promo.delaySeconds) < 0 || Number(promo.delaySeconds) > 300) { notify("تأخير الظهور يجب أن يكون بين 0 و300 ثانية."); return; }
+      if (!Number.isInteger(Number(promo.repeatAfterHours)) || Number(promo.repeatAfterHours) < 1 || Number(promo.repeatAfterHours) > 720) { notify("فاصل التكرار يجب أن يكون بين ساعة و720 ساعة."); return; }
+      if (!Number.isInteger(Number(promo.visibleSeconds)) || Number(promo.visibleSeconds) < 0 || Number(promo.visibleSeconds) > 300) { notify("الإغلاق التلقائي يجب أن يكون بين 0 و300 ثانية."); return; }
+      if (promo.mediaType === "video" && !isSafeVideoSource(promo.videoUrl)) { notify("أدخل رابط HTTPS مباشراً لملف فيديو MP4 أو WebM أو OGG."); return; }
+      if (promo.mediaType === "image" && promo.image && !isSafeImageSource(promo.image)) { notify("مصدر صورة العرض غير صالح."); return; }
+      if (promo.buttonUrl && !safePopupAction(promo.buttonUrl)) { notify("رابط زر العرض يجب أن يكون HTTPS أو رابطاً داخلياً صالحاً."); return; }
       const schedule = calculatePromotionWindow(promo);
-      if (!schedule) { setToast("تعذّر حساب انتهاء صلاحية العرض؛ راجع المدة."); return; }
+      if (!schedule) { notify("تعذّر حساب انتهاء صلاحية العرض؛ راجع المدة."); return; }
       savedPromo = { ...promo, durationValue: duration, durationUnit: unit, ...schedule, campaignId: promo.campaignId || makeCampaignId() };
     }
     setIsSaving(true);
-    const payload = { ...draft, promotionalPopup: savedPromo, stats: DEF_STATS, adminAuth: { username: adminUser.trim() || "admin", ...(newPass.trim() ? { newPassword: newPass.trim() } : {}) } };
     try {
+      const payload = isSecuritySave
+        ? { adminAuth: { username: username || "admin", ...(passwordToSave ? { newPassword: passwordToSave } : {}) } }
+        : { ...draft, promotionalPopup: savedPromo, stats: DEF_STATS };
       const r = await fetch("/api/site-data", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: payload }) });
-      const res = await r.json();
+      const res = await r.json().catch(() => null);
+      if (!res || typeof res !== "object") { notify("وصل رد غير صالح من الخادم؛ لم يتم تأكيد التعديل."); return; }
       if (r.ok && res?.ok) {
         const m = mergeData(res.data || payload); setSiteData(m); setDraft(m);
-        if (newPass.trim()) { setNewPass(""); setNewPassConfirm(""); }
-        if (res.credentialsChanged) { setAdminUnlocked(false); setAdminPass(""); setLeads([]); setAnalyticsData(null); setToast("تم تحديث بيانات الدخول وإنهاء الجلسات السابقة؛ سجّل الدخول بالبيانات الجديدة."); }
-        else setToast("تم حفظ التعديلات في قاعدة البيانات بنجاح");
+        if (passwordToSave) { setNewPass(""); setNewPassConfirm(""); }
+        if (res.credentialsChanged) {
+          setAdminUnlocked(false); setAdminPass(""); setLeads([]); setAnalyticsData(null);
+          notify("تم تحديث بيانات الدخول وإنهاء الجلسات السابقة؛ سجّل الدخول بالبيانات الجديدة.", "success");
+        } else notify("تم حفظ التعديلات بنجاح.", "success");
+      } else {
+        if (r.status === 401) setAdminUnlocked(false);
+        notify(res?.error || `تعذر حفظ التعديلات (HTTP ${r.status}).`);
       }
-      else { if (r.status === 401) setAdminUnlocked(false); setToast(res?.error || "تعذر حفظ التعديلات في قاعدة البيانات"); }
-    } catch { setToast("تعذر الاتصال بالخادم؛ لم يتم حفظ التعديلات"); }
-    setIsSaving(false);
+    } catch {
+      notify("تعذر الاتصال بالخادم؛ لم يتم تأكيد حفظ التعديلات.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const delLead = async (id: string) => { try { const r = await fetch(`/api/admin/leads?id=${encodeURIComponent(id)}`, { method: "DELETE", credentials: "same-origin" }); const d = await r.json(); if (r.ok && d?.ok) setLeads(d.leads || []); else if (r.status === 401) setAdminUnlocked(false); } catch {} };
@@ -360,8 +378,9 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", marginBottom: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><img src={siteData.branding?.watermarkLogo || "/mathabah-original-logo.png"} alt="مثابة" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "8px" }} /><div><h3 style={{ margin: 0, fontSize: "1.05rem" }}>لوحة تحكم وإعدادات مؤسسة مثابة</h3><small style={{ color: "#c9965c", display: "flex", alignItems: "center", gap: "5px" }}><ShieldCheck size={12} /> بوابة دخول خاصة بالمدير</small></div></div>
               <button type="button" onClick={() => window.location.assign("/")} style={btCss} aria-label="العودة إلى الموقع"><X size={16} /></button>
-            </div>
-            {!adminUnlocked ? (
+              </div>
+              {adminFeedback && <div role={adminFeedback.kind === "error" ? "alert" : "status"} aria-live="polite" style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "8px", border: `1px solid ${adminFeedback.kind === "error" ? "#e17d7d" : "#75b78b"}`, background: adminFeedback.kind === "error" ? "rgba(180,55,55,.16)" : "rgba(53,139,82,.16)", color: "#f5f2eb", lineHeight: 1.7 }}>{adminFeedback.message}</div>}
+              {!adminUnlocked ? (
               <form onSubmit={loginAdmin} style={{ display: "grid", gap: "12px" }}>
                 <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب الأدمن لإدارة محتوى الموقع دون تعديل الأكواد. ويمكنك تغيير اسم المستخدم وكلمة المرور بعد الدخول من تبويب «حساب الأدمن»:</p>
                 <label style={lbCss}>اسم المستخدم<input value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>

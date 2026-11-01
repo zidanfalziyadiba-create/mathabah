@@ -11,6 +11,7 @@ button { font:inherit; color:inherit; cursor:pointer; border:0; }
 .site-shell { overflow:hidden; background:var(--ink); }
 .admin-standalone { min-height:100vh; background:#080a0e; }
 .admin-standalone > :not(.admin-modal) { display:none !important; }
+.admin-standalone > .toast { display:flex !important; z-index:10002; }
 .admin-standalone > .admin-modal { position:fixed; }
 .announcement { height:32px; display:flex; align-items:center; justify-content:center; gap:12px; background:#201f1c; color:#c9c2b7; font-size:11px; letter-spacing:.05em; position:relative; z-index:10000; }
 .announcement button { position:absolute; left:22px; background:none; color:#948d83; display:grid; place-items:center; }

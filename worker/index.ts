@@ -288,11 +288,14 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
 
   if (path === "/api/site-data" && request.method === "POST") {
     if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
+    let failureStage = "read_session";
     try {
       const sessionUsername = await getAdminSession(request, env);
       if (!sessionUsername) return jsonResponse({ ok: false, error: "انتهت جلسة الإدارة؛ سجّل الدخول مجدداً" }, 401);
+      failureStage = "read_request_body";
       const body = await request.json() as any;
       if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) return jsonResponse({ ok: false, error: "بيانات الموقع غير صالحة" }, 400);
+      failureStage = "read_existing_record";
       const existing = (await readRecord(env, "site_data")) || {};
       const submittedAuth = body.data.adminAuth || {};
       const username = cleanText(submittedAuth.username || sessionUsername || existing.adminAuth?.username || "admin", 80);
@@ -307,6 +310,7 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
       };
       delete nextAdminAuth.password;
       if (submittedAuth.newPassword) {
+        failureStage = "derive_new_password_hash";
         const newPassword = String(submittedAuth.newPassword);
         if (newPassword.length < 12 || newPassword.length > 256) return jsonResponse({ ok: false, error: "كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً" }, 400);
         const salt = freshSalt();
@@ -316,10 +320,12 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
       }
       const { adminAuth: _untrustedAuth, ...publicFields } = body.data;
       const payload = { ...existing, ...publicFields, adminAuth: nextAdminAuth, updatedAt: new Date().toISOString() };
+      failureStage = "write_record";
       await writeRecord(env, "site_data", payload);
       const { adminAuth: _privateAuth, ...safeData } = payload;
       return jsonResponse({ ok: true, data: safeData, credentialsChanged }, 200, credentialsChanged ? { "Set-Cookie": sessionCookie("", 0) } : {});
-    } catch {
+    } catch (error) {
+      console.error("admin_save_error", { stage: failureStage, errorType: safeAuthErrorType(error) });
       return jsonResponse({ ok: false, error: "فشل الحفظ في قاعدة البيانات؛ لم يتم تأكيد التغييرات" }, 503);
     }
   }
