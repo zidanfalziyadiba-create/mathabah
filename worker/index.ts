@@ -237,14 +237,23 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
 
   if (path === "/api/admin/login" && request.method === "POST") {
     if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
+    let failureStage: "request_body" | "verify_credentials" | "create_session" = "request_body";
     try {
       const body = await request.json() as any;
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return jsonResponse({ ok: false, error: "بيانات تسجيل الدخول غير صالحة" }, 400);
+      }
+      failureStage = "verify_credentials";
       const ok = await verifyAdmin(env, body.username, body.password);
       if (!ok) return jsonResponse({ ok: false, error: "اسم المستخدم أو كلمة المرور غير صحيحة" }, 401);
       const username = cleanText(body.username, 80);
+      failureStage = "create_session";
       const token = await createAdminSession(env, username);
       return jsonResponse({ ok: true, username }, 200, { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_TTL) });
-    } catch {
+    } catch (error) {
+      const safeErrorTypes = ["Error", "TypeError", "SyntaxError", "RangeError", "DOMException", "DataError", "OperationError"];
+      const errorType = error instanceof Error && safeErrorTypes.includes(error.name) ? error.name : "UnknownError";
+      console.error("admin_login_error", { stage: failureStage, errorType });
       return jsonResponse({ ok: false, error: "تعذر التحقق من الدخول أو قاعدة البيانات" }, 503);
     }
   }

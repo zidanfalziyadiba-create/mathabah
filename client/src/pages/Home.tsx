@@ -363,7 +363,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
             </div>
             {!adminUnlocked ? (
               <form onSubmit={loginAdmin} style={{ display: "grid", gap: "12px" }}>
-                <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب الأدمن لتغيير صور المعرض، الشعار، وروابط فيسبوك وواتساب وإنستغرام وسناب شات وتيك توك بدون تعديل الأكواد:</p>
+                <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب الأدمن لإدارة محتوى الموقع دون تعديل الأكواد. ويمكنك تغيير اسم المستخدم وكلمة المرور بعد الدخول من تبويب «حساب الأدمن»:</p>
                 <label style={lbCss}>اسم المستخدم<input value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>
                 <label style={lbCss}>كلمة المرور<input type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} placeholder="أدخل كلمة مرور حساب الأدمن" autoComplete="current-password" style={inCss} /></label>
                 <button type="submit" className="button button-copper" style={{ width: "100%", justifyContent: "center" }}><ShieldCheck size={16} /> دخول إلى لوحة الإعدادات</button>
