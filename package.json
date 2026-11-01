@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && esbuild worker/index.ts --bundle --format=esm --platform=neutral --outfile=dist/worker.js",
+    "build": "rm -rf dist && vite build && esbuild worker/index.ts --bundle --format=esm --platform=neutral --outfile=dist/worker.js",
     "start": "NODE_ENV=production node dist/worker.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",

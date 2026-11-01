@@ -34,12 +34,6 @@ async function startServer() {
     res.type("application/xml").set("Cache-Control", "public, max-age=3600").send(sitemap);
   });
 
-  app.get("/robots.txt", (_req, res) => {
-    res.type("text/plain").set("Cache-Control", "public, max-age=3600").send(
-      "User-agent: *\nAllow: /\nSitemap: https://mathabahksa.com/sitemap.xml\n",
-    );
-  });
-
   app.use(
     express.static(staticPath, {
       setHeaders: (res, filePath) => {
