@@ -68,17 +68,42 @@ function freshSalt(): string {
   return toHex(crypto.getRandomValues(new Uint8Array(16)));
 }
 
-async function verifyAdmin(env: Env, userIn: string, passIn: string): Promise<boolean> {
+const SAFE_AUTH_ERROR_NAMES = new Set([
+  "Error", "TypeError", "SyntaxError", "RangeError", "ReferenceError", "URIError", "EvalError", "AggregateError", "DOMException",
+  "DataError", "OperationError", "NotSupportedError", "InvalidAccessError", "SecurityError", "AbortError", "NetworkError",
+  "ConstraintError", "QuotaExceededError", "UnknownError",
+]);
+
+type AuthDiagnosticStage = "read_admin_record" | "validate_username" | "derive_password_hash" | "compare_password_hash" | "compare_legacy_password";
+
+function safeAuthErrorType(error: unknown): string {
+  const candidate = error && typeof error === "object" && "name" in error
+    ? (error as { name?: unknown }).name
+    : null;
+  if (typeof candidate === "string" && SAFE_AUTH_ERROR_NAMES.has(candidate)) return candidate;
+  if (error === null) return "ThrownNull";
+  if (typeof error === "object") return "ThrownObject";
+  if (typeof error === "string") return "ThrownString";
+  return "ThrownPrimitive";
+}
+
+async function verifyAdmin(env: Env, userIn: string, passIn: string, onStage?: (stage: AuthDiagnosticStage) => void): Promise<boolean> {
   if (!env.ADMIN_PASSWORD) return false;
+  onStage?.("read_admin_record");
   const stored = await readRecord(env, "site_data");
   const auth = stored?.adminAuth || {};
   const expectedUser = String(auth.username || "admin").trim().toLowerCase();
   const user = String(userIn || "").trim().toLowerCase();
   const password = String(passIn || "");
+  onStage?.("validate_username");
   if (!user || !password || !constantTimeEqual(user, expectedUser)) return false;
   if (auth.passwordHash && auth.passwordSalt) {
-    return constantTimeEqual(await hashPassword(password, auth.passwordSalt), auth.passwordHash);
+    onStage?.("derive_password_hash");
+    const candidateHash = await hashPassword(password, auth.passwordSalt);
+    onStage?.("compare_password_hash");
+    return constantTimeEqual(candidateHash, auth.passwordHash);
   }
+  onStage?.("compare_legacy_password");
   return constantTimeEqual(password, env.ADMIN_PASSWORD);
 }
 
@@ -237,22 +262,21 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
 
   if (path === "/api/admin/login" && request.method === "POST") {
     if (!isSameOrigin(request, url)) return jsonResponse({ ok: false, error: "طلب غير مسموح" }, 403);
-    let failureStage: "request_body" | "verify_credentials" | "create_session" = "request_body";
+    let failureStage: string = "request_body";
     try {
       const body = await request.json() as any;
       if (!body || typeof body !== "object" || Array.isArray(body)) {
         return jsonResponse({ ok: false, error: "بيانات تسجيل الدخول غير صالحة" }, 400);
       }
       failureStage = "verify_credentials";
-      const ok = await verifyAdmin(env, body.username, body.password);
+      const ok = await verifyAdmin(env, body.username, body.password, (stage) => { failureStage = stage; });
       if (!ok) return jsonResponse({ ok: false, error: "اسم المستخدم أو كلمة المرور غير صحيحة" }, 401);
       const username = cleanText(body.username, 80);
       failureStage = "create_session";
       const token = await createAdminSession(env, username);
       return jsonResponse({ ok: true, username }, 200, { "Set-Cookie": sessionCookie(token, ADMIN_SESSION_TTL) });
     } catch (error) {
-      const safeErrorTypes = ["Error", "TypeError", "SyntaxError", "RangeError", "DOMException", "DataError", "OperationError"];
-      const errorType = error instanceof Error && safeErrorTypes.includes(error.name) ? error.name : "UnknownError";
+      const errorType = safeAuthErrorType(error);
       console.error("admin_login_error", { stage: failureStage, errorType });
       return jsonResponse({ ok: false, error: "تعذر التحقق من الدخول أو قاعدة البيانات" }, 503);
     }
