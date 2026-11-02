@@ -357,9 +357,13 @@ async function readAnalytics(env: Env): Promise<Record<string, any>> {
   };
 }
 
-async function handleApi(request: Request, env: Env, url: URL, path: string): Promise<Response | null> {
+async function handleApi(request: Request, env: Env, url: URL, path: string, ctx: ExecutionContext): Promise<Response | null> {
   if (path === "/api/site-data" && request.method === "GET") {
     try {
+      const edgeCache = typeof caches !== "undefined" ? caches.default : null;
+      const cacheKey = new Request(`${url.origin}/api/site-data`, { method: "GET" });
+      const edgeHit = edgeCache ? await edgeCache.match(cacheKey) : null;
+      if (edgeHit) return edgeHit;
       const now = Date.now();
       if (!publicSiteCache || publicSiteCache.expiresAt <= now) {
         const stored = await readRecord(env, "site_data");
@@ -369,9 +373,11 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
           publicSiteCache = { data: publicData, expiresAt: now + 30_000 };
         }
       }
-      return jsonResponse({ ok: true, data: publicSiteCache.data }, 200, {
+      const response = jsonResponse({ ok: true, data: publicSiteCache.data }, 200, {
         "Cache-Control": "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
       });
+      if (edgeCache) ctx.waitUntil(edgeCache.put(cacheKey, response.clone()));
+      return response;
     } catch {
       return jsonResponse({ ok: false, error: "قاعدة البيانات غير متاحة حالياً" }, 503);
     }
@@ -461,6 +467,9 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
       failureStage = "write_record";
       await writeRecord(env, "site_data", payload);
       publicSiteCache = null;
+      if (typeof caches !== "undefined") {
+        ctx.waitUntil(caches.default.delete(new Request(`${url.origin}/api/site-data`, { method: "GET" })));
+      }
       const { adminAuth: _privateAuth, ...safeData } = payload;
       return jsonResponse({ ok: true, data: safeData, credentialsChanged }, 200, credentialsChanged ? { "Set-Cookie": sessionCookie("", 0) } : {});
     } catch (error) {
@@ -554,7 +563,7 @@ async function handleApi(request: Request, env: Env, url: URL, path: string): Pr
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, "") || "/";
     if (path === "/robots.txt" && request.method === "GET") {
@@ -564,7 +573,7 @@ export default {
     }
     if (path.startsWith("/api/")) {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "Allow": "GET, POST, DELETE, OPTIONS", "Cache-Control": "no-store" } });
-      const response = await handleApi(request, env, url, path);
+      const response = await handleApi(request, env, url, path, ctx);
       if (response) {
         if (path === "/api/admin" || path.startsWith("/api/admin/")) {
           const headers = new Headers(response.headers);
