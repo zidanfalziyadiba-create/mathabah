@@ -51,6 +51,10 @@ function AnalyticsBeacon({ path, disabled }: { path: string; disabled: boolean }
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
+  useEffect(() => {
+    if (path === "/admin") document.title = "لوحة إدارة الموقع | مثابة";
+  }, [path]);
+
   const page = path === "/admin"
     ? <Home initialAdminOpen />
     : servicePaths.has(path)
