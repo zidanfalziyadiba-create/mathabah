@@ -145,7 +145,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   const [adminUser, setAdminUser] = useState("admin");
   const [adminPass, setAdminPass] = useState("");
   const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [adminTab, setAdminTab] = useState("gallery");
+  const [savedAdminUser, setSavedAdminUser] = useState("admin");
   const [isSaving, setIsSaving] = useState(false);
   const [leads, setLeads] = useState<any[]>([]);
   const [newPass, setNewPass] = useState("");
@@ -173,7 +173,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   useEffect(() => {
     if (!initialAdminOpen) return;
     fetch("/api/admin/session", { cache: "no-store", credentials: "same-origin" }).then(async (r) => ({ ok: r.ok, data: await r.json() })).then(({ ok, data }) => {
-      if (ok && data?.ok) { setAdminUser(data.username || "admin"); setAdminUnlocked(true); fetchLeads(); }
+      if (ok && data?.ok) { const username = data.username || "admin"; setAdminUser(username); setSavedAdminUser(username); setAdminUnlocked(true); fetchLeads(); }
     }).catch(() => {});
   }, [initialAdminOpen]);
 
@@ -256,37 +256,37 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
   }, []);
 
   useEffect(() => {
-    if (!adminUnlocked || adminTab !== "analytics") return;
+    if (!initialAdminOpen || !adminUnlocked) return;
     void fetchAnalytics(false);
     const timer = window.setInterval(() => void fetchAnalytics(true), 15_000);
     return () => window.clearInterval(timer);
-  }, [adminUnlocked, adminTab, fetchAnalytics]);
+  }, [initialAdminOpen, adminUnlocked, fetchAnalytics]);
 
   const loginAdmin = async (e: any) => {
     e.preventDefault();
     try {
       const r = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: adminUser.trim() || "admin", password: adminPass }) });
       const d = await r.json();
-      if (r.ok && d?.ok) { setAdminUser(d.username || adminUser.trim() || "admin"); setAdminUnlocked(true); setAdminPass(""); setDraft(siteData); setToast("تم الدخول إلى لوحة الأدمن"); fetchLeads(); return; }
+      if (r.ok && d?.ok) { const username = d.username || adminUser.trim() || "admin"; setAdminUser(username); setSavedAdminUser(username); setAdminUnlocked(true); setAdminPass(""); setDraft(siteData); setToast("تم الدخول إلى لوحة الإدارة"); fetchLeads(); return; }
       setToast(d?.error || "بيانات الدخول غير صحيحة");
     } catch { setToast("تعذر الاتصال بالخادم؛ لم يتم تسجيل الدخول"); }
   };
 
   const saveDb = async () => {
-    const isSecuritySave = adminTab === "security";
     const username = adminUser.trim();
-    const passwordToSave = isSecuritySave ? newPass.trim() : "";
+    const passwordToSave = newPass.trim();
+    const securityChanged = username !== savedAdminUser.trim() || Boolean(passwordToSave);
     const notify = (message: string, kind: "success" | "error" = "error") => {
       setAdminFeedback({ kind, message });
       setToast(message);
     };
     setAdminFeedback(null);
-    if (isSecuritySave && (username.length < 3 || username.length > 80)) { notify("اسم المستخدم يجب أن يكون بين 3 و80 حرفاً."); return; }
+    if (securityChanged && (username.length < 3 || username.length > 80)) { notify("اسم المستخدم يجب أن يكون بين 3 و80 حرفاً."); return; }
     if (passwordToSave && (passwordToSave.length < 12 || passwordToSave.length > 256)) { notify("كلمة المرور الجديدة يجب أن تكون بين 12 و256 حرفاً."); return; }
     if (passwordToSave && passwordToSave !== newPassConfirm.trim()) { notify("تأكيد كلمة المرور غير مطابق."); return; }
     const promo = { ...DEF_PROMO, ...(draft.promotionalPopup || {}) };
     let savedPromo = { ...promo };
-    if (adminTab === "promo" && promo.enabled) {
+    if (promo.enabled) {
       if (!String(promo.title || "").trim()) { notify("أضف عنواناً للعرض قبل تفعيله."); return; }
       const duration = Number(promo.durationValue);
       const unit = promo.durationUnit === "hours" ? "hours" : "days";
@@ -304,19 +304,23 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
     }
     setIsSaving(true);
     try {
-      const payload = isSecuritySave
-        ? { adminAuth: { username: username || "admin", ...(passwordToSave ? { newPassword: passwordToSave } : {}) } }
-        : { ...draft, promotionalPopup: savedPromo, stats: DEF_STATS };
+      const payload = {
+        ...draft,
+        promotionalPopup: savedPromo,
+        stats: DEF_STATS,
+        ...(securityChanged ? { adminAuth: { username: username || "admin", ...(passwordToSave ? { newPassword: passwordToSave } : {}) } } : {}),
+      };
       const r = await fetch("/api/site-data", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: payload }) });
       const res = await r.json().catch(() => null);
       if (!res || typeof res !== "object") { notify("وصل رد غير صالح من الخادم؛ لم يتم تأكيد التعديل."); return; }
       if (r.ok && res?.ok) {
         const m = mergeData(res.data || payload); setSiteData(m); setDraft(m);
+        setSavedAdminUser(username || savedAdminUser);
         if (passwordToSave) { setNewPass(""); setNewPassConfirm(""); }
         if (res.credentialsChanged) {
           setAdminUnlocked(false); setAdminPass(""); setLeads([]); setAnalyticsData(null);
           notify("تم تحديث بيانات الدخول وإنهاء الجلسات السابقة؛ سجّل الدخول بالبيانات الجديدة.", "success");
-        } else notify("تم حفظ التعديلات بنجاح.", "success");
+        } else notify("تم حفظ جميع التعديلات بنجاح.", "success");
       } else {
         if (r.status === 401) setAdminUnlocked(false);
         notify(res?.error || `تعذر حفظ التعديلات (HTTP ${r.status}).`);
@@ -373,41 +377,47 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
       {toast && <div className="toast" role="status"><Lock size={15} /> {toast}</div>}
 
       {initialAdminOpen && (
-        <div className="admin-modal" role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, background: "rgba(8,10,14,0.85)", backdropFilter: "blur(8px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "14px", overflowY: "auto" }}>
-          <div className="admin-box" style={{ width: "100%", maxWidth: adminUnlocked ? "960px" : "420px", maxHeight: "92vh", overflowY: "auto", background: "#12151c", color: "#f5f2eb", border: "1px solid rgba(184,122,61,0.4)", borderRadius: "18px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><img src={siteData.branding?.watermarkLogo || "/mathabah-original-logo.png"} alt="مثابة" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "8px" }} /><div><h3 style={{ margin: 0, fontSize: "1.05rem" }}>لوحة تحكم وإعدادات مؤسسة مثابة</h3><small style={{ color: "#c9965c", display: "flex", alignItems: "center", gap: "5px" }}><ShieldCheck size={12} /> بوابة دخول خاصة بالمدير</small></div></div>
-              <button type="button" onClick={() => window.location.assign("/")} style={btCss} aria-label="العودة إلى الموقع"><X size={16} /></button>
+        <main className="admin-dashboard" role="main">
+          <div className={`admin-box ${adminUnlocked ? "is-unlocked" : "is-locked"}`}>
+            <div className="admin-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><img src={siteData.branding?.watermarkLogo || "/mathabah-original-logo.png"} alt="مثابة" style={{ width: "36px", height: "36px", objectFit: "contain", borderRadius: "8px" }} /><div><h1 className="admin-title">لوحة إدارة الموقع</h1><small className="admin-subtitle"><ShieldCheck size={12} /> مؤسسة مثابة — دخول خاص بالمدير</small></div></div>
+              <a href="/" className="admin-return-link"><ExternalLink size={14} /> العودة إلى الموقع</a>
               </div>
               {adminFeedback && <div role={adminFeedback.kind === "error" ? "alert" : "status"} aria-live="polite" style={{ marginBottom: "12px", padding: "10px 12px", borderRadius: "8px", border: `1px solid ${adminFeedback.kind === "error" ? "#e17d7d" : "#75b78b"}`, background: adminFeedback.kind === "error" ? "rgba(180,55,55,.16)" : "rgba(53,139,82,.16)", color: "#f5f2eb", lineHeight: 1.7 }}>{adminFeedback.message}</div>}
               {!adminUnlocked ? (
               <form onSubmit={loginAdmin} style={{ display: "grid", gap: "12px" }}>
-                <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب الأدمن لإدارة محتوى الموقع دون تعديل الأكواد. ويمكنك تغيير اسم المستخدم وكلمة المرور بعد الدخول من تبويب «حساب الأدمن»:</p>
+                <p style={{ margin: 0, fontSize: "0.88rem", opacity: 0.85 }}>سجّل الدخول بحساب المدير لفتح لوحة إدارة الموقع.</p>
                 <label style={lbCss}>اسم المستخدم<input value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>
                 <label style={lbCss}>كلمة المرور<input type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)} placeholder="أدخل كلمة مرور حساب الأدمن" autoComplete="current-password" style={inCss} /></label>
                 <button type="submit" className="button button-copper" style={{ width: "100%", justifyContent: "center" }}><ShieldCheck size={16} /> دخول إلى لوحة الإعدادات</button>
               </form>
             ) : (
               <div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "14px", paddingBottom: "10px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                  {[{ id: "gallery", l: "صور ومعرض الأعمال", ic: <ImageIcon size={14} /> }, { id: "social", l: "روابط فيسبوك وواتساب والسوشيال", ic: <Share2 size={14} /> }, { id: "hero", l: "الشعار والواجهة", ic: <Settings size={14} /> }, { id: "services", l: "الخدمات", ic: <Layers size={14} /> }, { id: "analytics", l: "تحليلات الموقع", ic: <BarChart3 size={14} /> }, { id: "promo", l: "العروض المنبثقة", ic: <Gift size={14} /> }, { id: "leads", l: `طلبات العملاء (${leads.length})`, ic: <Users size={14} /> }, { id: "security", l: "حساب الأدمن", ic: <KeyRound size={14} /> }].map((t: any) => <button key={t.id} type="button" onClick={() => { setAdminTab(t.id); if (t.id === "leads") fetchLeads(); }} style={{ ...btCss, borderColor: adminTab === t.id ? "#c9965c" : "rgba(255,255,255,0.12)", background: adminTab === t.id ? "rgba(201,150,92,0.22)" : "rgba(255,255,255,0.04)" }}>{t.ic} {t.l}</button>)}
-                </div>
-                {adminTab === "gallery" && (
+                <div className="admin-dashboard-intro"><p>جميع إعدادات الموقع ومحتواه وطلباته في صفحة واحدة. انتقل للقسم المطلوب أو مرّر الصفحة، ثم احفظ التعديلات مرة واحدة من أسفل اللوحة.</p></div>
+                <nav className="admin-section-nav" aria-label="التنقل داخل لوحة الإدارة">
+                  {[{ id: "gallery", l: "معرض الأعمال", ic: <ImageIcon size={14} /> }, { id: "social", l: "التواصل والروابط", ic: <Share2 size={14} /> }, { id: "hero", l: "الشعار والواجهة", ic: <Settings size={14} /> }, { id: "services", l: "الخدمات", ic: <Layers size={14} /> }, { id: "analytics", l: "التحليلات", ic: <BarChart3 size={14} /> }, { id: "promo", l: "العروض", ic: <Gift size={14} /> }, { id: "leads", l: `طلبات العملاء (${leads.length})`, ic: <Users size={14} /> }, { id: "security", l: "الحساب والأمان", ic: <KeyRound size={14} /> }].map((t: any) => <a key={t.id} href={`#admin-${t.id}`} style={btCss}>{t.ic} {t.l}</a>)}
+                </nav>
+{(
+                  <section id="admin-gallery" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">01</span><div><h2>صور ومعرض الأعمال</h2><p>إدارة الصور والعناوين والأوصاف التي تظهر في سجل الأعمال.</p></div></header>
                   <div style={{ display: "grid", gap: "12px" }}>
                     <div style={{ display: "grid", gap: "8px" }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}><strong>إدارة صور سجل الأعمال:</strong><button type="button" onClick={() => setDraft({ ...draft, gallery: [{ image: "/glass-facade_1281cb63_3c523186.jpg", kicker: "تنفيذ · دقة · جودة", title: "مشروع جديد لمؤسسة مثابة", category: "زجاج معماري", text: "وصف المشروع." }, ...(draft.gallery || [])] })} style={btCss}><Plus size={14} /> إضافة صورة / عمل جديد</button></div><small style={{ color: "#f2c98e", lineHeight: 1.7 }}>استخدم صوراً لمشاريع نفذتها المؤسسة فعلاً قبل عرضها على أنها أعمال منفذة.</small></div>
                     {(draft.gallery || []).map((it: any, idx: number) => (
-                      <div key={idx} style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "10px", background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "10px" }}>
+                      <div key={idx} className="admin-gallery-item" style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: "10px", background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "10px" }}>
                         <div style={{ display: "grid", gap: "6px" }}><img src={it.image} alt={it.title} style={{ width: "120px", height: "88px", objectFit: "cover", borderRadius: "8px" }} /><label style={{ ...btCss, justifyContent: "center", fontSize: "0.74rem" }}><Upload size={12} /> رفع صورة<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const u = await compressImg(f); const n = [...draft.gallery]; n[idx] = { ...n[idx], image: u }; setDraft({ ...draft, gallery: n }); }} /></label></div>
                         <div style={{ display: "grid", gap: "6px" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}><input value={it.title || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], title: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss} placeholder="العنوان" /><select value={it.category || "زجاج معماري"} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], category: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss}><option value="زجاج معماري">زجاج معماري</option><option value="ديكور داخلي">ديكور داخلي</option><option value="ألمنيوم وستيل">ألمنيوم وستيل</option><option value="أعمال متكاملة">أعمال متكاملة</option></select><input value={it.kicker || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], kicker: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss} placeholder="الكلمات المفتاحية" /></div>
+                          <div className="admin-gallery-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}><input value={it.title || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], title: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss} placeholder="العنوان" /><select value={it.category || "زجاج معماري"} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], category: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss}><option value="زجاج معماري">زجاج معماري</option><option value="ديكور داخلي">ديكور داخلي</option><option value="ألمنيوم وستيل">ألمنيوم وستيل</option><option value="أعمال متكاملة">أعمال متكاملة</option></select><input value={it.kicker || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], kicker: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss} placeholder="الكلمات المفتاحية" /></div>
                           <textarea rows={2} value={it.text || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], text: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={inCss} />
                           <div style={{ display: "flex", gap: "6px" }}><input value={it.image || ""} onChange={(e) => { const n = [...draft.gallery]; n[idx] = { ...n[idx], image: e.target.value }; setDraft({ ...draft, gallery: n }); }} style={{ ...inCss, flex: 1 }} placeholder="مسار الصورة" /><button type="button" onClick={() => setDraft({ ...draft, gallery: draft.gallery.filter((_: any, i: number) => i !== idx) })} style={{ ...btCss, color: "#ff8b8b" }}><Trash2 size={13} /> حذف</button></div>
                         </div>
                       </div>
                     ))}
                   </div>
+                  </section>
                 )}
-                {adminTab === "social" && (
+{(
+                  <section id="admin-social" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">02</span><div><h2>التواصل والروابط</h2><p>أرقام الاتصال وروابط الشبكات الاجتماعية وموقع المؤسسة.</p></div></header>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "10px" }}>
                     <label style={lbCss}>رقم الواتساب (مثال: 966565173798)<input value={draft.contact?.whatsappRaw || ""} onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact, whatsappRaw: e.target.value } })} style={inCss} /></label>
                     <label style={lbCss}>رقم الهاتف المعروض<input value={draft.contact?.phoneDisplay || ""} onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact, phoneDisplay: e.target.value, phoneRaw: e.target.value.replace(/\s+/g, "") } })} style={inCss} /></label>
@@ -418,30 +428,44 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                     <label style={lbCss}>المدينة / المنطقة<input value={draft.contact?.cityAccent || ""} onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact, cityAccent: e.target.value } })} style={inCss} /></label>
                     <label style={lbCss}>رابط موقع Google Maps (يبقى مخفياً حتى التفعيل)<input placeholder="https://maps.app.goo.gl/..." value={draft.contact?.mapsUrl || ""} onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact, mapsUrl: e.target.value } })} style={inCss} /></label><label style={{ ...lbCss, display: "flex", alignItems: "center", gap: "8px" }}><input type="checkbox" checked={draft.contact?.mapEnabled === true && isValidMapUrl(draft.contact?.mapsUrl)} disabled={!isValidMapUrl(draft.contact?.mapsUrl)} onChange={(e) => setDraft({ ...draft, contact: { ...draft.contact, mapEnabled: e.target.checked } })} /> تفعيل رابط الخريطة للزوار</label>
                   </div>
+                  </section>
                 )}
-                {adminTab === "hero" && (
+{(
+                  <section id="admin-hero" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">03</span><div><h2>الشعار والواجهة والإعلانات</h2><p>الشعار وصورة الواجهة والعناوين وشريط الإعلان.</p></div></header>
                   <div style={{ display: "grid", gap: "10px" }}>
                     <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "10px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><img src={draft.branding?.watermarkLogo || "/mathabah-original-logo.png"} alt="Logo" style={{ width: "50px", height: "50px", objectFit: "contain", background: "#fff", borderRadius: "8px", padding: "3px" }} /><label style={btCss}><Upload size={13} /> تغيير الشعار الرسمي<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const u = await compressImg(f, 500); setDraft({ ...draft, branding: { ...draft.branding, watermarkLogo: u, useLogoInsteadOfM: true } }); }} /></label></div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><img src={draft.hero?.image} alt="Hero" style={{ width: "75px", height: "50px", objectFit: "cover", borderRadius: "8px" }} /><label style={btCss}><Upload size={13} /> تغيير صورة الواجهة<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const u = await compressImg(f, 1500); setDraft({ ...draft, hero: { ...draft.hero, image: u } }); }} /></label></div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>العنوان الرئيسي<input value={draft.hero?.titleMain || ""} onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, titleMain: e.target.value } })} style={inCss} /></label><label style={lbCss}>العنوان الملون<input value={draft.hero?.titleAccent || ""} onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, titleAccent: e.target.value } })} style={inCss} /></label></div>
+                    <div className="admin-two-column" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>العنوان الرئيسي<input value={draft.hero?.titleMain || ""} onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, titleMain: e.target.value } })} style={inCss} /></label><label style={lbCss}>العنوان الملون<input value={draft.hero?.titleAccent || ""} onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, titleAccent: e.target.value } })} style={inCss} /></label></div>
                     <label style={lbCss}>وصف الواجهة الرئيسية<textarea rows={2} value={draft.hero?.description || ""} onChange={(e) => setDraft({ ...draft, hero: { ...draft.hero, description: e.target.value } })} style={inCss} /></label>
-                    <label style={{ ...lbCss, display: "flex", alignItems: "center", gap: "8px" }}><input type="checkbox" checked={draft.announcement?.enabled !== false} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, enabled: e.target.checked } })} /> إظهار شريط العروض للزوار</label><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>العرض أو الخصم الأول<input placeholder="اكتب العرض كما سيظهر للزوار" value={draft.announcement?.text1 || ""} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, text1: e.target.value } })} style={inCss} /></label><label style={lbCss}>العرض أو الخصم الثاني<input placeholder="مثال: لفترة محدودة — تواصل لمعرفة التفاصيل" value={draft.announcement?.text2 || ""} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, text2: e.target.value } })} style={inCss} /></label></div>
+                    <label style={{ ...lbCss, display: "flex", alignItems: "center", gap: "8px" }}><input type="checkbox" checked={draft.announcement?.enabled !== false} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, enabled: e.target.checked } })} /> إظهار شريط العروض للزوار</label><div className="admin-two-column" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>العرض أو الخصم الأول<input placeholder="اكتب العرض كما سيظهر للزوار" value={draft.announcement?.text1 || ""} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, text1: e.target.value } })} style={inCss} /></label><label style={lbCss}>العرض أو الخصم الثاني<input placeholder="مثال: لفترة محدودة — تواصل لمعرفة التفاصيل" value={draft.announcement?.text2 || ""} onChange={(e) => setDraft({ ...draft, announcement: { ...draft.announcement, text2: e.target.value } })} style={inCss} /></label></div>
                   </div>
+                  </section>
                 )}
-                {adminTab === "services" && (
+{(
+                  <section id="admin-services" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">04</span><div><h2>الخدمات</h2><p>تعديل محتوى الخدمات والصور المرتبطة بها.</p></div></header>
                   <div style={{ display: "grid", gap: "10px" }}>
                     {(draft.services || []).map((s: any, idx: number) => (
-                      <div key={idx} style={{ display: "grid", gridTemplateColumns: "95px 1fr", gap: "10px", background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "10px" }}>
+                      <div key={idx} className="admin-service-item" style={{ display: "grid", gridTemplateColumns: "95px 1fr", gap: "10px", background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "10px" }}>
                         <div><img src={s.image} alt={s.title} style={{ width: "95px", height: "65px", objectFit: "cover", borderRadius: "6px" }} /><label style={{ ...btCss, fontSize: "0.7rem", padding: "4px", marginTop: "4px", width: "100%", justifyContent: "center" }}><Upload size={11} /> صورة<input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const u = await compressImg(f); const n = [...draft.services]; n[idx] = { ...n[idx], image: u }; setDraft({ ...draft, services: n }); }} /></label></div>
                         <div style={{ display: "grid", gap: "5px" }}><input value={s.title || ""} onChange={(e) => { const n = [...draft.services]; n[idx] = { ...n[idx], title: e.target.value }; setDraft({ ...draft, services: n }); }} style={inCss} /><textarea rows={2} value={s.text || ""} onChange={(e) => { const n = [...draft.services]; n[idx] = { ...n[idx], text: e.target.value }; setDraft({ ...draft, services: n }); }} style={inCss} /></div>
                       </div>
                     ))}
                   </div>
+                  </section>
                 )}
-                {adminTab === "analytics" && <AdminAnalytics data={analyticsData} loading={analyticsLoading} onRefresh={() => void fetchAnalytics(false)} />}
-                {adminTab === "promo" && (
+                {(
+                  <section id="admin-analytics" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">05</span><div><h2>تحليلات الموقع</h2><p>ملخص الزيارات والطلبات المسجلة في الموقع.</p></div></header>
+                    <AdminAnalytics data={analyticsData} loading={analyticsLoading} onRefresh={() => void fetchAnalytics(false)} />
+                  </section>
+                )}
+{(
+                  <section id="admin-promo" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">06</span><div><h2>العروض المنبثقة</h2><p>إعداد العرض الاختياري ومراجعته قبل نشره.</p></div></header>
                   <div style={{ display: "grid", gap: "12px" }}>
                     <div style={{ border: "1px solid rgba(201,150,92,.35)", background: "rgba(201,150,92,.08)", padding: "12px", borderRadius: "10px", lineHeight: 1.8 }}>
                       <strong style={{ color: "#e4bd8d" }}>نافذة عرض اختيارية — متوقفة افتراضياً</strong>
@@ -460,17 +484,23 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                     <label style={lbCss}>نوع الوسائط<select value={draftPromotion.mediaType || "image"} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, mediaType: e.target.value } })} style={inCss}><option value="none">بدون صورة أو فيديو</option><option value="image">صورة</option><option value="video">فيديو برابط مباشر</option></select></label>
                     {draftPromotion.mediaType === "image" && <div style={{ display: "grid", gap: "8px" }}><label style={lbCss}>رفع صورة العرض (JPEG / PNG / WebP، حتى 8MB)<input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => { const input=e.currentTarget; const file=input.files?.[0]; if (!file) return; if (file.size > 8*1024*1024 || !/^image\/(jpeg|png|webp)$/.test(file.type)) { setToast("اختر صورة JPEG أو PNG أو WebP لا تتجاوز 8MB."); input.value=""; return; } const image=await compressImg(file,1100); if (image.length > 1250000) { setToast("حجم الصورة بعد الضغط كبير؛ اختر صورة أصغر."); input.value=""; return; } setDraft({ ...draft, promotionalPopup: { ...draftPromotion, image, mediaType: "image" } }); }} style={{ ...inCss, padding: "8px" }} /></label>{draftPromotion.image && <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}><img src={draftPromotion.image} alt="معاينة صورة العرض" style={{ width: "120px", height: "72px", objectFit: "cover", borderRadius: "8px" }} /><button type="button" onClick={() => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, image: "" } })} style={btCss}>حذف الصورة</button></div>}</div>}
                     {draftPromotion.mediaType === "video" && <label style={lbCss}>رابط HTTPS مباشر لفيديو MP4 أو WebM أو OGG<input type="url" value={draftPromotion.videoUrl || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, videoUrl: e.target.value } })} placeholder="https://example.com/offer.mp4" style={inCss} /></label>}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>نص الزر (اختياري)<input maxLength={40} value={draftPromotion.buttonText || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, buttonText: e.target.value } })} placeholder="تواصل لمعرفة التفاصيل" style={inCss} /></label><label style={lbCss}>رابط الزر (HTTPS أو رابط داخلي)<input type="text" inputMode="url" autoComplete="url" value={draftPromotion.buttonUrl || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, buttonUrl: e.target.value } })} placeholder="https://wa.me/966... أو /contact" style={inCss} /></label></div>
+                    <div className="admin-two-column" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label style={lbCss}>نص الزر (اختياري)<input maxLength={40} value={draftPromotion.buttonText || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, buttonText: e.target.value } })} placeholder="تواصل لمعرفة التفاصيل" style={inCss} /></label><label style={lbCss}>رابط الزر (HTTPS أو رابط داخلي)<input type="text" inputMode="url" autoComplete="url" value={draftPromotion.buttonUrl || ""} onChange={(e) => setDraft({ ...draft, promotionalPopup: { ...draftPromotion, buttonUrl: e.target.value } })} placeholder="https://wa.me/966... أو /contact" style={inCss} /></label></div>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}><button type="button" onClick={() => setPromotionPreviewOpen(true)} style={btCss}><Eye size={14} /> معاينة غير منشورة</button><small style={{ opacity: 0.8 }}>المعاينة لا تفعّل العرض ولا تحفظه.</small></div>
                   </div>
+                  </section>
                 )}
-                {adminTab === "leads" && (
+{(
+                  <section id="admin-leads" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">07</span><div><h2>طلبات العملاء</h2><p>متابعة الطلبات المسجلة وتحديث القائمة.</p></div></header>
                   <div style={{ display: "grid", gap: "8px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}><strong>سجل طلبات العملاء:</strong><button type="button" onClick={() => fetchLeads()} style={btCss}><RefreshCw size={13} /> تحديث</button></div>
                     {leads.length === 0 ? <p style={{ opacity: 0.75 }}>لا توجد طلبات مسجلة حالياً.</p> : leads.map((l: any) => <div key={l.id} style={{ background: "rgba(255,255,255,0.04)", padding: "10px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><strong>{l.name}</strong> — {l.project} ({l.location || "الرياض"})<p style={{ margin: "3px 0 0", fontSize: "0.84rem", opacity: 0.85 }}>{l.details}</p></div><button type="button" onClick={() => delLead(l.id)} style={{ ...btCss, color: "#ff8b8b" }}><Trash2 size={13} /></button></div>)}
                   </div>
+                  </section>
                 )}
-                {adminTab === "security" && (
+{(
+                  <section id="admin-security" className="admin-section">
+                    <header className="admin-section-heading"><span className="admin-section-mark">08</span><div><h2>الحساب والأمان</h2><p>تغيير بيانات الدخول أو إنهاء الجلسة.</p></div></header>
                   <div style={{ display: "grid", gap: "10px" }}>
                     <p style={{ margin: 0, opacity: 0.82, lineHeight: 1.8 }}>غيّر اسم المستخدم أو كلمة المرور. لا تُعرض كلمة المرور الحالية؛ عند تغيير بيانات الدخول تُنهى الجلسات السابقة وتحتاج إلى تسجيل الدخول مجدداً.</p>
                     <label style={lbCss}>اسم المستخدم<input type="text" minLength={3} maxLength={80} autoComplete="username" value={adminUser} onChange={(e) => setAdminUser(e.target.value)} style={inCss} /></label>
@@ -478,10 +508,11 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
                     <label style={lbCss}>تأكيد كلمة المرور الجديدة<input type="password" minLength={12} maxLength={256} autoComplete="new-password" value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)} placeholder="أعد كتابة كلمة المرور الجديدة" style={inCss} /></label>
                     <button type="button" onClick={logoutAdmin} style={{ ...btCss, color: "#ff9e9e", width: "fit-content" }}><LogOut size={14} /> تسجيل الخروج</button>
                   </div>
+                  </section>
                 )}
-                <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.12)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                  <small style={{ opacity: 0.75 }}>تُحفظ التعديلات في قاعدة البيانات وتظهر على الموقع فوراً.</small>
-                  <button type="button" onClick={saveDb} disabled={isSaving} className="button button-copper">{isSaving ? <><Loader2 size={15} className="spin" /> جاري إرسال الطلب...</> : <><Save size={15} /> حفظ التعديلات ونشرها فوراً</>}</button>
+                <div className="admin-savebar" style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.12)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  <small style={{ opacity: 0.85 }}>يحفظ الزر تعديلات الأقسام كلها. إذا غيّرت بيانات الدخول فستنتهي الجلسة الحالية.</small>
+                  <button type="button" onClick={saveDb} disabled={isSaving} className="button button-copper admin-save-button">{isSaving ? <><Loader2 size={15} className="spin" /> جارٍ حفظ التعديلات...</> : <><Save size={15} /> حفظ جميع التعديلات ونشرها</>}</button>
                 </div>
               </div>
             )}
@@ -496,7 +527,7 @@ export default function Home({ initialAdminOpen = false }: { initialAdminOpen?: 
               </section>
             </div>, document.body
           )}
-        </div>
+        </main>
       )}
       {!initialAdminOpen && promotionVisible && createPortal(
         <div className="promotion-backdrop" role="presentation" onClick={() => setPromotionVisible(false)}>
